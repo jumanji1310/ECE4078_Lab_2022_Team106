@@ -54,13 +54,18 @@ class Operate:
         self.control_clock = time.time()
         self.bg = pygame.image.load('pics/gui_mask.jpg')
 
+        self.speeds = [20,5] # predefine default speeds
+
     # wheel control
-    def control(self):       
+    def control(self): 
         if args.play_data:
-            lv, rv = self.pibot.set_velocity()            
+            lv, rv = self.pibot.set_velocity(tick = self.speeds[0], turning_tick = self.speeds[1])            
         else:
             lv, rv = self.pibot.set_velocity(
-                self.command['motion'])
+                self.command['motion'],
+                tick = self.speeds[0],
+                turning_tick = self.speeds[1]
+                )
         if not self.data is None:
             self.data.write_keyboard(lv, rv)
         dt = time.time() - self.control_clock
@@ -138,15 +143,22 @@ class Operate:
             # drive forward
             if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
                 self.command['motion'] = [1, 0]
+                self.speeds = [20,5] # [linear speed, turning speed]
             # drive backward
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
                 self.command['motion'] = [-1, 0]
+                #self.speeds = [5,1]
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
                 self.command['motion'] = [0, 1]
             # drive right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
                 self.command['motion'] = [0, -1]
+            # stop moving when key released
+            # this makes the vehicle stop unexpectedly when performing other actions (e.g. take screenshot by pressing i)
+            # to fix this (if we need to) simply check the key released is up down left or right
+            elif event.type == pygame.KEYUP:
+                self.command['motion'] = [0, 0]
             ####################################################
             # stop
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -187,7 +199,7 @@ if __name__ == "__main__":
     pibot_animate = [pygame.image.load('pics/8bit/pibot1.png'),
                      pygame.image.load('pics/8bit/pibot2.png'),
                      pygame.image.load('pics/8bit/pibot3.png'),
-                    pygame.image.load('pics/8bit/pibot4.png'),
+                     pygame.image.load('pics/8bit/pibot4.png'),
                      pygame.image.load('pics/8bit/pibot5.png')]
     pygame.display.update()
 
@@ -207,6 +219,8 @@ if __name__ == "__main__":
 
     operate = Operate(args)
 
+    clock = pygame.time.Clock() # clock for setting FPS
+
     while start:
         operate.update_keyboard()
         operate.take_pic()
@@ -215,6 +229,9 @@ if __name__ == "__main__":
         # visualise
         operate.draw(canvas)
         pygame.display.update()
+        clock.tick(5) # limited to 5 fps (for now, can easily modify later)
+        #print(clock.get_fps())
+        
 
 
 
