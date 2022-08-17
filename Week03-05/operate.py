@@ -306,6 +306,7 @@ if __name__ == "__main__":
         # visualise
         operate.draw(canvas)
         pygame.display.update()
+        print(operate.ekf.robot.state)
 
 
 
