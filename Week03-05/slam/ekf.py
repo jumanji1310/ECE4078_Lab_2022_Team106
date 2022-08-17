@@ -30,7 +30,7 @@ class EKF:
         f_ = f'./pics/8bit/lm_unknown.png'
         self.lm_pics.append(pygame.image.load(f_))
         self.pibot_pic = pygame.image.load(f'./pics/8bit/pibot_top.png')
-        
+
     def reset(self):
         self.robot.state = np.zeros((3, 1))
         self.markers = np.zeros((2,0))
@@ -47,11 +47,11 @@ class EKF:
         state = np.concatenate(
             (self.robot.state, np.reshape(self.markers, (-1,1), order='F')), axis=0)
         return state
-    
+
     def set_state_vector(self, state):
         self.robot.state = state[0:3,:]
         self.markers = np.reshape(state[3:,:], (2,-1), order='F')
-    
+
     def save_map(self, fname="slam_map.txt"):
         if self.number_landmarks() > 0:
             utils = MappingUtils(self.markers, self.P[3:,3:], self.taglist)
@@ -78,7 +78,7 @@ class EKF:
                 return True
             else:
                 return False
-        
+
     ##########################################
     # EKF functions
     # Tune your SLAM algorithm here
@@ -91,6 +91,13 @@ class EKF:
         x = self.get_state_vector()
 
         # TODO: add your codes here to compute the predicted x
+        #save prediction
+        x[:3] = self.robot.state
+        #calculate Jacobian of dynamics
+        A = self.state_transition(raw_drive_meas)
+        #calculate covariance matrix for dynamics model
+        Q = self.predict_covariance(raw_drive_meas)
+        self.P = A @ self.P @ A.T + Q
 
     # the update step of EKF
     def update(self, measurements):
@@ -115,14 +122,24 @@ class EKF:
         x = self.get_state_vector()
 
         # TODO: add your codes here to compute the updated x
+        #Compute Kalman Gain
+        S = H @ self.P @ H.T + R
+        K = self.P @ H.T @ np.linalg.inv(S)
 
+        #Correct state
+        y = z - z_hat
+        x = x + K @ y
+        self.set_state_vector(x)
+
+        #Correct covariance
+        self.P = (np.eye(x.shape[0]) - K @ H) @ self.P
 
     def state_transition(self, raw_drive_meas):
         n = self.number_landmarks()*2 + 3
         F = np.eye(n)
         F[0:3,0:3] = self.robot.derivative_drive(raw_drive_meas)
         return F
-    
+
     def predict_covariance(self, raw_drive_meas):
         n = self.number_landmarks()*2 + 3
         Q = np.zeros((n,n))
@@ -142,7 +159,7 @@ class EKF:
             if lm.tag in self.taglist:
                 # ignore known tags
                 continue
-            
+
             lm_bff = lm.position
             lm_inertial = robot_xy + R_theta @ lm_bff
 
@@ -162,35 +179,35 @@ class EKF:
     @staticmethod
     def umeyama(from_points, to_points):
 
-    
+
         assert len(from_points.shape) == 2, \
             "from_points must be a m x n array"
         assert from_points.shape == to_points.shape, \
             "from_points and to_points must have the same shape"
-        
+
         N = from_points.shape[1]
         m = 2
-        
+
         mean_from = from_points.mean(axis = 1).reshape((2,1))
         mean_to = to_points.mean(axis = 1).reshape((2,1))
-        
+
         delta_from = from_points - mean_from # N x m
         delta_to = to_points - mean_to       # N x m
-        
+
         cov_matrix = delta_to @ delta_from.T / N
-        
+
         U, d, V_t = np.linalg.svd(cov_matrix, full_matrices = True)
         cov_rank = np.linalg.matrix_rank(cov_matrix)
         S = np.eye(m)
-        
+
         if cov_rank >= m - 1 and np.linalg.det(cov_matrix) < 0:
             S[m-1, m-1] = -1
         elif cov_rank < m-1:
             raise ValueError("colinearility detected in covariance matrix:\n{}".format(cov_matrix))
-        
+
         R = U.dot(S).dot(V_t)
         t = mean_to - R.dot(mean_from)
-    
+
         return R, t
 
     # Plotting functions
@@ -211,7 +228,7 @@ class EKF:
         else:
             bg_rgb = np.array([120, 120, 120]).reshape(1, 1, 3)
         canvas = np.ones((res[1], res[0], 3))*bg_rgb.astype(np.uint8)
-        # in meters, 
+        # in meters,
         lms_xy = self.markers[:2, :]
         robot_xy = self.robot.state[:2, 0].reshape((2, 1))
         lms_xy = lms_xy - robot_xy
@@ -219,10 +236,10 @@ class EKF:
         robot_theta = self.robot.state[2,0]
         # plot robot
         start_point_uv = self.to_im_coor((0, 0), res, m2pixel)
-        
+
         p_robot = self.P[0:2,0:2]
         axes_len,angle = self.make_ellipse(p_robot)
-        canvas = cv2.ellipse(canvas, start_point_uv, 
+        canvas = cv2.ellipse(canvas, start_point_uv,
                     (int(axes_len[0]*m2pixel), int(axes_len[1]*m2pixel)),
                     angle, 0, 360, (0, 30, 56), 1)
         # draw landmards
@@ -233,7 +250,7 @@ class EKF:
                 # plot covariance
                 Plmi = self.P[3+2*i:3+2*(i+1),3+2*i:3+2*(i+1)]
                 axes_len, angle = self.make_ellipse(Plmi)
-                canvas = cv2.ellipse(canvas, coor_, 
+                canvas = cv2.ellipse(canvas, coor_,
                     (int(axes_len[0]*m2pixel), int(axes_len[1]*m2pixel)),
                     angle, 0, 360, (244, 69, 96), 1)
 
@@ -261,12 +278,12 @@ class EKF:
         rot_rect = orig_rect.copy()
         rot_rect.center = rot_image.get_rect().center
         rot_image = rot_image.subsurface(rot_rect).copy()
-        return rot_image       
+        return rot_image
 
     @staticmethod
     def make_ellipse(P):
         e_vals, e_vecs = np.linalg.eig(P)
-        idx = e_vals.argsort()[::-1]   
+        idx = e_vals.argsort()[::-1]
         e_vals = e_vals[idx]
         e_vecs = e_vecs[:, idx]
         alpha = np.sqrt(4.605)
@@ -277,4 +294,4 @@ class EKF:
             angle = 0
         return (axes_len[0], axes_len[1]), angle
 
- 
+
