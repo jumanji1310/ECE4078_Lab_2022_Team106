@@ -81,7 +81,7 @@ class Robot:
             DFx[0,2] = -np.sin(th)*lin_vel*dt
             DFx[1,2] = np.cos(th)*lin_vel*dt
         else:
-            DFx[0,2] = -lin_vel/ang_vel * (np.cos(th + dt*ang_vel) - np.cos(th))
+            DFx[0,2] = lin_vel/ang_vel * (np.cos(th + dt*ang_vel) - np.cos(th))
             DFx[1,2] = lin_vel/ang_vel * (np.sin(th + ang_vel*dt) - np.sin(th))
 
         return DFx
