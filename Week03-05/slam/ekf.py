@@ -91,16 +91,16 @@ class EKF:
 #         x = self.get_state_vector()
 
         # TODO: add your codes here to compute the predicted x
-        
+
         # compute robot's state given the control input
         self.robot.drive(raw_drive_meas)
-        
+
         # Get A using state_transition() calculate Jacobian of dynamics
         A = self.state_transition(raw_drive_meas)
-        
+
         # Get Q using predict_covariance() calculate covariance matrix for dynamics model
         Q = self.predict_covariance(raw_drive_meas)
-        
+
         # Update robot's uncertainty and update robot's state
         self.P = A @ self.P @ A.T + Q
 
@@ -148,7 +148,7 @@ class EKF:
     def predict_covariance(self, raw_drive_meas):
         n = self.number_landmarks()*2 + 3
         Q = np.zeros((n,n))
-        Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas)+ 0.01*np.eye(3)
+        Q[0:3,0:3] = self.robot.covariance_drive(raw_drive_meas) #+ 0.01*np.eye(3)
         return Q
 
     def add_landmarks(self, measurements):
