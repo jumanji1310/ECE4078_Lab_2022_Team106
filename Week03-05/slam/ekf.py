@@ -128,7 +128,7 @@ class EKF:
 
         # TODO: add your codes here to compute the updated x
         #Compute Kalman Gain
-        S = H @ self.P @ H.T + R
+        S = H @ self.P @ H.T + R #+ 0.01*np.eye(R.shape[0])
         K = self.P @ H.T @ np.linalg.inv(S)
 
         #Correct state
