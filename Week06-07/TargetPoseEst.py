@@ -53,7 +53,7 @@ def get_image_info(base_dir, file_path, image_poses):
             box = np.stack(target_lst_box[i], axis=1)
             pose = np.stack(target_lst_pose[i], axis=1)
             completed_img_dict[i+1] = {'target': box, 'robot': pose}
-        
+
     return completed_img_dict
 
 # estimate the pose of a target based on size and location of its bounding box in the robot's camera view and the robot's pose
@@ -82,22 +82,76 @@ def estimate_pose(base_dir, camera_matrix, completed_img_dict):
         box = completed_img_dict[target_num]['target'] # [[x],[y],[width],[height]]
         robot_pose = completed_img_dict[target_num]['robot'] # [[x], [y], [theta]]
         true_height = target_dimensions[target_num-1][2]
-        
+
         ######### Replace with your codes #########
         # TODO: compute pose of the target based on bounding box info and robot's pose
         target_pose = {'y': 0.0, 'x': 0.0}
-        
+
+        # On a 640x480 camera
+
+        b = box[3][0] #height of object
+        B = true_height #true height
+        a = 5.502573000465266659e+02 #focal length Fx, top left of camera matrix
+
+        A = a*B/b #depth of object
+
+        theta = robot_pose[2][0] #pose of robot w.r.t World Frame
+        robot_x = robot_pose[0][0] #x of robot w.r.t World Frame
+        robot_y = robot_pose[1][0] #y of robot w.r.t World Frame
+
+        y = A * np.sin(theta) #y of object w.r.t to Robot frame
+        x = A * np.cos(theta) #x of object w.r.t to Robot frame
+
+        object_x = box[0][0] #x position of object in camera plane
+        x_from_centre = 320 - object_x# 640/2 = 320 to get the x distance from centreline
+        camera_theta = np.arctan(x_from_centre/a) #calculate angle from centreline
+
+        total_theta = theta + camera_theta #angle of object w.r.t to Robot frame
+
+        object_y = A * np.sin(total_theta) #object y w.r.t to Robot Frame
+        object_x = A * np.cos(total_theta) #object x w.r.t to Robot Frame
+
+
+        object_y_world = robot_y + object_y #object y w.r.t to World Frame
+        object_x_world = robot_x + object_x #object x w.r.t to World Frame
+
+        target_pose = {'y':object_y_world, 'x':object_x_world}
+
         target_pose_dict[target_list[target_num-1]] = target_pose
         ###########################################
-    
+
     return target_pose_dict
+
+# Custom function to average the location of fruits
+def distance(x1, x2, y1, y2):
+    return np.sqrt((x1-x2)**2+(y1-y2)**2)
+testfruit = np.array([[4,3],[1,2],[2,3]])
+def average_fruit_location(fruit_est):
+    min_dist = 9999
+    while len(fruit_est) > 2:
+        #find two points close to each other
+        for fruit1 in fruit_est:
+            for fruit2 in fruit_est:
+                if fruit1 != fruit2: #if not same fruit
+                    distance = self.distance(fruit1[1],fruit2[1],fruit[0],fruit[0])
+                    if distance < min_dist:
+                        min_dist = distance
+                        min_index1 = fruit_est.index(fruit1)
+                        min_index2 = fruit_est.index(fruit2)
+        #merge two points by averaging
+        x_avg = (fruit_est[min_index1][1] + fruit_est[min_index2][1])/2 #averaging x
+        y_avg = (fruit_est[min_index1][0] + fruit_est[min_index2][0])/2 #averaging y
+
+        fruit_est = np.delete(fruit_est,(min_index1, minindex2), axis=0)
+        fruit_est.append(np.array([y_avg,x_avg]))
+
 
 # merge the estimations of the targets so that there are at most 3 estimations of each target type
 def merge_estimations(target_pose_dict):
     target_pose_dict = target_pose_dict
     apple_est, lemon_est, pear_est, orange_est, strawberry_est = [], [], [], [], []
     target_est = {}
-    
+
     # combine the estimations from multiple detector outputs
     for f in target_map:
         for key in target_map[f]:
@@ -113,7 +167,7 @@ def merge_estimations(target_pose_dict):
                 strawberry_est.append(np.array(list(target_map[f][key].values()), dtype=float))
 
     ######### Replace with your codes #########
-    # TODO: the operation below takes the first three estimations of each target type, replace it with a better merge solution
+    # TODO: the operation below takes the first two estimations of each target type, replace it with a better merge solution
     if len(apple_est) > 2:
         apple_est = apple_est[0:2]
     if len(lemon_est) > 2:
@@ -147,7 +201,7 @@ def merge_estimations(target_pose_dict):
         except:
             pass
     ###########################################
-        
+
     return target_est
 
 
@@ -156,29 +210,31 @@ if __name__ == "__main__":
     fileK = "{}intrinsic.txt".format('./calibration/param/')
     camera_matrix = np.loadtxt(fileK, delimiter=',')
     base_dir = Path('./')
-    
-    
+
+
     # a dictionary of all the saved detector outputs
     image_poses = {}
     with open(base_dir/'lab_output/images.txt') as fp:
         for line in fp.readlines():
             pose_dict = ast.literal_eval(line)
             image_poses[pose_dict['imgfname']] = pose_dict['pose']
-    
+
     # estimate pose of targets in each detector output
-    target_map = {}        
+    target_map = {}
     for file_path in image_poses.keys():
         completed_img_dict = get_image_info(base_dir, file_path, image_poses)
         target_map[file_path] = estimate_pose(base_dir, camera_matrix, completed_img_dict)
 
     # merge the estimations of the targets so that there are at most 3 estimations of each target type
     target_est = merge_estimations(target_map)
-                     
+
     # save target pose estimations
     with open(base_dir/'lab_output/targets.txt', 'w') as fo:
         json.dump(target_est, fo)
-    
+
     print('Estimations saved!')
+
+
 
 
 
