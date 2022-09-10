@@ -63,6 +63,7 @@ class Operate:
         self.ekf_on = False
         self.double_reset_comfirm = 0
         self.image_id = 0
+        self.pred_count = 0
         self.notification = 'Press ENTER to start SLAM'
         # a 5min timer
         self.count_down = 300
@@ -119,7 +120,7 @@ class Operate:
     # using computer vision to detect targets
     def detect_target(self):
         if self.command['inference'] and self.detector is not None:
-            self.detector_output, self.network_vis = self.detector.detect_single_image(self.img)
+            self.detector_output, self.network_vis, self.bounding_boxes = self.detector.detect_single_image(self.img)
             self.command['inference'] = False
             self.file_output = (self.detector_output, self.ekf)
             self.notification = f'{len(np.unique(self.detector_output))-1} target type(s) detected'
@@ -150,6 +151,13 @@ class Operate:
         robot = Robot(baseline, scale, camera_matrix, dist_coeffs)
         return EKF(robot)
 
+    # function to save bounding box info
+    def bounding_box_output(self, box_list):
+        import json
+        with open(f'pred_{self.pred_count}', "w") as f:
+            json.dump(box_list, f)
+            self.pred_count += 1
+
     # save SLAM map
     def record_data(self):
         if self.command['output']:
@@ -162,6 +170,7 @@ class Operate:
                 #image = cv2.cvtColor(self.file_output[0], cv2.COLOR_RGB2BGR)
                 self.pred_fname = self.output.write_image(self.file_output[0],
                                                         self.file_output[1])
+                self.bounding_box_output(self.bounding_boxes) #save bounding box text file
                 self.notification = f'Prediction is saved to {operate.pred_fname}'
             else:
                 self.notification = f'No prediction in buffer, save ignored'
