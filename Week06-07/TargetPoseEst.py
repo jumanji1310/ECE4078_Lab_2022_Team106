@@ -77,7 +77,7 @@ def estimate_pose(base_dir, camera_matrix, completed_img_dict):
         for i in range(len(completed_img_dict[target_num]['target'][0])):
             box = completed_img_dict[target_num]['target'] # [[x],[y],[width],[height]]
             robot_pose = completed_img_dict[target_num]['robot'] # [[x], [y], [theta]]
-            true_height = target_dimensions[target_num-1][2]
+            true_height = target_dimensions[target_num][2]
 
             ######### Replace with your codes #########
             # TODO: compute pose of the target based on bounding box info and robot's pose
@@ -113,7 +113,7 @@ def estimate_pose(base_dir, camera_matrix, completed_img_dict):
 
             target_pose = {'y':object_y_world, 'x':object_x_world}
 
-            target_pose_dict[f'{target_list[target_num-1]}_{i}'] = target_pose
+            target_pose_dict[f'{target_list[target_num]}_{i}'] = target_pose
             ###########################################
 
     return target_pose_dict
@@ -141,7 +141,7 @@ def average_fruit_location(fruit_est):
         fruit_est = np.delete(fruit_est,(min1, min2), axis=0)
         fruit_est = np.vstack((fruit_est, [y_avg,x_avg]))
     return fruit_est
-    
+
 # merge the estimations of the targets so that there are at most 3 estimations of each target type
 def merge_estimations(target_pose_dict):
     target_pose_dict = target_pose_dict
