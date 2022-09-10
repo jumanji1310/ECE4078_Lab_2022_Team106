@@ -11,22 +11,6 @@ from machinevisiontoolbox import Image
 import matplotlib.pyplot as plt
 import PIL
 
-# use the machinevision toolbox to get the bounding box of the detected target(s) in an image
-def get_bounding_box(target_number, image_path):
-    image = PIL.Image.open(image_path).resize((640,480), PIL.Image.NEAREST)
-    target = Image(image)==target_number
-    blobs = target.blobs()
-    [[u1,u2],[v1,v2]] = blobs[0].bbox # bounding box
-    width = abs(u1-u2)
-    height = abs(v1-v2)
-    center = np.array(blobs[0].centroid).reshape(2,)
-    box = [center[0], center[1], int(width), int(height)] # box=[x,y,width,height]
-    # plt.imshow(fruit.image)
-    # plt.annotate(str(fruit_number), np.array(blobs[0].centroid).reshape(2,))
-    # plt.show()
-    # assert len(blobs) == 1, "An image should contain only one object of each target type"
-    return box
-
 # read in the list of detection results with bounding boxes and their matching robot pose info
 def get_image_info(base_dir, file_path, image_poses):
     # there are at most five types of targets in each image
@@ -36,16 +20,27 @@ def get_image_info(base_dir, file_path, image_poses):
 
     # add the bounding box info of each target in each image
     # target labels: 1 = apple, 2 = lemon, 3 = pear, 4 = orange, 5 = strawberry, 0 = not_a_target
-    img_vals = set(Image(base_dir / file_path, grey=True).image.reshape(-1))
-    for target_num in img_vals:
-        if target_num > 0:
-            try:
-                box = get_bounding_box(target_num, base_dir/file_path) # [x,y,width,height]
-                pose = image_poses[file_path] # [x, y, theta]
-                target_lst_box[target_num-1].append(box) # bouncing box of target
-                target_lst_pose[target_num-1].append(np.array(pose).reshape(3,)) # robot pose
-            except ZeroDivisionError:
-                pass
+    text_file_path = file_path.split('.')[0] + '.txt' #replacing with .txt
+
+    #reading json data
+    with open(text_file_path,"r") as f:
+        data = json.load(f)
+        for fruit in data:
+            xmin = fruit['xmin']
+            ymin = fruit['ymin']
+            xmax = fruit['xmax']
+            ymax = fruit['ymax']
+            x = (xmin + xmax)/2
+            y = (ymin + ymax)/2
+            width = xmax - xmin
+            height = ymax - ymin
+            
+            box = [x, y, width, height]
+            pose = image_poses[file_path] #[x, y, theta]
+            target_num = fruit['class']
+            target_lst_box[target_num-1].append(box)
+            target_lst_pose[target_num-1].append(np.array(pose).reshape(3,)) # robot pose
+
 
     # if there are more than one objects of the same type, combine them
     for i in range(5):
@@ -53,7 +48,6 @@ def get_image_info(base_dir, file_path, image_poses):
             box = np.stack(target_lst_box[i], axis=1)
             pose = np.stack(target_lst_pose[i], axis=1)
             completed_img_dict[i+1] = {'target': box, 'robot': pose}
-        
     return completed_img_dict
 
 # estimate the pose of a target based on size and location of its bounding box in the robot's camera view and the robot's pose
@@ -75,77 +69,79 @@ def estimate_pose(base_dir, camera_matrix, completed_img_dict):
     target_dimensions.append(strawberry_dimensions)
 
     target_list = ['apple', 'lemon', 'pear', 'orange', 'strawberry']
-
+    target_list = ['apple','lemon','orange','pear','strawberry'] #0, 1, 2, 3, 4
     target_pose_dict = {}
+
     # for each target in each detection output, estimate its pose
     for target_num in completed_img_dict.keys():
-        box = completed_img_dict[target_num]['target'] # [[x],[y],[width],[height]]
-        robot_pose = completed_img_dict[target_num]['robot'] # [[x], [y], [theta]]
-        true_height = target_dimensions[target_num-1][2]
+        for i in range(len(completed_img_dict[target_num]['target'][0])):
+            box = completed_img_dict[target_num]['target'] # [[x],[y],[width],[height]]
+            robot_pose = completed_img_dict[target_num]['robot'] # [[x], [y], [theta]]
+            true_height = target_dimensions[target_num-1][2]
 
-        ######### Replace with your codes #########
-        # TODO: compute pose of the target based on bounding box info and robot's pose
-        target_pose = {'y': 0.0, 'x': 0.0}
+            ######### Replace with your codes #########
+            # TODO: compute pose of the target based on bounding box info and robot's pose
+            target_pose = {'y': 0.0, 'x': 0.0}
 
-        # On a 640x480 camera
+            # On a 640x480 camera
 
-        b = box[3][0] #height of object
-        B = true_height #true height
-        a = focal_length #focal length Fx, top left of camera matrix
+            b = box[3][i] #height of object
+            B = true_height #true height
+            a = focal_length #focal length Fx, top left of camera matrix
 
-        A = a*B/b #depth of object
+            A = a*B/b #depth of object
 
-        theta = robot_pose[2][0] #pose of robot w.r.t World Frame
-        robot_x = robot_pose[0][0] #x of robot w.r.t World Frame
-        robot_y = robot_pose[1][0] #y of robot w.r.t World Frame
+            theta = robot_pose[2][i] #pose of robot w.r.t World Frame
+            robot_x = robot_pose[0][i] #x of robot w.r.t World Frame
+            robot_y = robot_pose[1][i] #y of robot w.r.t World Frame
 
-        y = A * np.sin(theta) #y of object w.r.t to Robot frame
-        x = A * np.cos(theta) #x of object w.r.t to Robot frame
+            y = A * np.sin(theta) #y of object w.r.t to Robot frame
+            x = A * np.cos(theta) #x of object w.r.t to Robot frame
 
-        object_x = box[0][0] #x position of object in camera plane
-        x_from_centre = 320 - object_x# 640/2 = 320 to get the x distance from centreline
-        camera_theta = np.arctan(x_from_centre/a) #calculate angle from centreline
+            object_x = box[0][i] #x position of object in camera plane
+            x_from_centre = 320 - object_x# 640/2 = 320 to get the x distance from centreline
+            camera_theta = np.arctan(x_from_centre/a) #calculate angle from centreline
 
-        total_theta = theta + camera_theta #angle of object w.r.t to Robot frame
+            total_theta = theta + camera_theta #angle of object w.r.t to Robot frame
 
-        object_y = A * np.sin(total_theta) #object y w.r.t to Robot Frame
-        object_x = A * np.cos(total_theta) #object x w.r.t to Robot Frame
+            object_y = A * np.sin(total_theta) #object y w.r.t to Robot Frame
+            object_x = A * np.cos(total_theta) #object x w.r.t to Robot Frame
 
 
-        object_y_world = robot_y + object_y #object y w.r.t to World Frame
-        object_x_world = robot_x + object_x #object x w.r.t to World Frame
+            object_y_world = robot_y + object_y #object y w.r.t to World Frame
+            object_x_world = robot_x + object_x #object x w.r.t to World Frame
 
-        target_pose = {'y':object_y_world, 'x':object_x_world}
+            target_pose = {'y':object_y_world, 'x':object_x_world}
 
-        target_pose_dict[target_list[target_num-1]] = target_pose
-        ###########################################
+            target_pose_dict[f'{target_list[target_num-1]}_{i}'] = target_pose
+            ###########################################
 
     return target_pose_dict
 
 # Custom function to average the location of fruits
-def distance(x1, x2, y1, y2):
+def calc_distance(x1, x2, y1, y2):
     return np.sqrt((x1-x2)**2+(y1-y2)**2)
-testfruit = np.array([[4,3],[1,2],[2,3]])
+
 def average_fruit_location(fruit_est):
-    min_dist = 9999
+    print(len(fruit_est))
     while len(fruit_est) > 2:
+        min_dist = 9999
         #find two points close to each other
-        for fruit1 in fruit_est:
-            for fruit2 in fruit_est:
-                if fruit1 != fruit2: #if not same fruit
-                    distance = self.distance(fruit1[1],fruit2[1],fruit[0],fruit[0])
+        for i, fruit1 in enumerate(fruit_est):
+            for j, fruit2 in enumerate(fruit_est):
+                if (fruit1[0] != fruit2[0]) or (fruit1[1] != fruit2[1]): #if not same fruit
+                    distance = calc_distance(fruit1[1],fruit2[1],fruit1[0],fruit2[0])
                     if distance < min_dist:
                         min_dist = distance
-                        min_index1 = fruit_est.index(fruit1)
-                        min_index2 = fruit_est.index(fruit2)
+                        min1 = i
+                        min2 = j
         #merge two points by averaging
-        x_avg = (fruit_est[min_index1][1] + fruit_est[min_index2][1])/2 #averaging x
-        y_avg = (fruit_est[min_index1][0] + fruit_est[min_index2][0])/2 #averaging y
-
-        fruit_est = np.delete(fruit_est,(min_index1, minindex2), axis=0)
-        fruit_est.append(np.array([y_avg,x_avg]))
-
-
+        x_avg = (fruit_est[min1][1] + fruit_est[min2][1])/2 #averaging x
+        y_avg = (fruit_est[min1][0] + fruit_est[min2][0])/2 #averaging y
+        fruit_est = np.delete(fruit_est,(min1, min2), axis=0)
+        fruit_est = np.vstack((fruit_est, [y_avg,x_avg]))
+    return fruit_est
+    
 # merge the estimations of the targets so that there are at most 3 estimations of each target type
 def merge_estimations(target_pose_dict):
     target_pose_dict = target_pose_dict
@@ -169,15 +165,15 @@ def merge_estimations(target_pose_dict):
     ######### Replace with your codes #########
     # TODO: the operation below takes the first two estimations of each target type, replace it with a better merge solution
     if len(apple_est) > 2:
-        apple_est = apple_est[0:2]
+        apple_est = average_fruit_location(apple_est)
     if len(lemon_est) > 2:
-        lemon_est = lemon_est[0:2]
+        lemon_est = average_fruit_location(lemon_est)
     if len(pear_est) > 2:
-        pear_est = pear_est[0:2]
+        pear_est = average_fruit_location(pear_est)
     if len(orange_est) > 2:
-        orange_est = orange_est[0:2]
+        orange_est = average_fruit_location(orange_est)
     if len(strawberry_est) > 2:
-        strawberry_est = strawberry_est[0:2]
+        strawberry_est = average_fruit_location(strawberry_est)
 
     for i in range(2):
         try:
@@ -210,7 +206,7 @@ if __name__ == "__main__":
     fileK = "{}intrinsic.txt".format('./calibration/param/')
     camera_matrix = np.loadtxt(fileK, delimiter=',')
     base_dir = Path('./')
-
+ 
 
     # a dictionary of all the saved detector outputs
     image_poses = {}
