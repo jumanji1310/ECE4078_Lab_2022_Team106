@@ -1,4 +1,4 @@
-import os 
+import os
 import time
 
 import cmd_printer
@@ -11,8 +11,8 @@ import cv2
 
 class Detector:
     def __init__(self, ckpt, use_gpu=False):
-        self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=ckpt)#load model and weights, 
-        
+        self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=ckpt, force_reload = True)#load model and weights,
+
         #use CUDA for inference
         if torch.cuda.torch.cuda.device_count() > 0 and use_gpu:
             self.use_gpu = True
