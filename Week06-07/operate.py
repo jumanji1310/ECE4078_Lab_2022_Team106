@@ -154,7 +154,7 @@ class Operate:
     # function to save bounding box info
     def bounding_box_output(self, box_list):
         import json
-        with open(f'lab_output/pred_{self.pred_count}', "w") as f:
+        with open(f'lab_output/pred_{self.pred_count}.txt', "w") as f:
             json.dump(box_list, f)
             self.pred_count += 1
 
