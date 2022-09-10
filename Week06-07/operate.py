@@ -120,10 +120,11 @@ class Operate:
     # using computer vision to detect targets
     def detect_target(self):
         if self.command['inference'] and self.detector is not None:
-            self.detector_output, self.network_vis, self.bounding_boxes = self.detector.detect_single_image(self.img)
+            self.detector_output, self.network_vis, self.bounding_boxes, pred_count = self.detector.detect_single_image(self.img)
             self.command['inference'] = False
             self.file_output = (self.detector_output, self.ekf)
-            self.notification = f'{len(np.unique(self.detector_output))-1} target type(s) detected'
+            # self.notification = f'{len(np.unique(self.detector_output))-1} target type(s) detected'
+            self.notification = f'{pred_count} fruits detected'
 
     # save raw images taken by the camera
     def save_image(self):
@@ -167,11 +168,11 @@ class Operate:
         # save inference with the matching robot pose and detector labels
         if self.command['save_inference']:
             if self.file_output is not None:
-                #image = cv2.cvtColor(self.file_output[0], cv2.COLOR_RGB2BGR)
-                self.pred_fname = self.output.write_image(self.file_output[0],
+                image = cv2.cvtColor(self.file_output[0], cv2.COLOR_BGR2RGB)
+                self.pred_fname = self.output.write_image(image,
                                                         self.file_output[1])
                 self.bounding_box_output(self.bounding_boxes) #save bounding box text file
-                self.notification = f'Prediction is saved to {operate.pred_fname}'
+                self.notification = f'Prediction is saved to pred_{self.pred_count-1}.png'
             else:
                 self.notification = f'No prediction in buffer, save ignored'
             self.command['save_inference'] = False

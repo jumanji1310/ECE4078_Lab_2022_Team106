@@ -11,7 +11,8 @@ import cv2
 
 class Detector:
     def __init__(self, ckpt, use_gpu=False):
-        self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=ckpt, force_reload = True)#load model and weights,
+        # self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=ckpt, force_reload = True)#load model and weights,
+        self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=ckpt)#load model and weights,
 
         #use CUDA for inference
         if torch.cuda.torch.cuda.device_count() > 0 and use_gpu:
@@ -42,4 +43,4 @@ class Detector:
             class_no = int(pred.pandas().xyxy[0]['class'][i])
             result_list.append({'xmin':xmin, 'ymin':ymin, 'xmax':xmax, 'ymax':ymax, 'name':name, 'class': class_no})
 
-        return pred.render()[0], pred.render()[0], result_list
+        return pred.render()[0], pred.render()[0], result_list, pred_count
