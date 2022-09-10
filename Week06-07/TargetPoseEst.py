@@ -29,7 +29,7 @@ def get_bounding_box(target_number, image_path):
 
 # read in the list of detection results with bounding boxes and their matching robot pose info
 def get_image_info(base_dir, file_path, image_poses):
-    # there are at most three types of targets in each image
+    # there are at most five types of targets in each image
     target_lst_box = [[], [], [], [], []]
     target_lst_pose = [[], [], [], [], []]
     completed_img_dict = {}
@@ -39,7 +39,12 @@ def get_image_info(base_dir, file_path, image_poses):
     img_vals = set(Image(base_dir / file_path, grey=True).image.reshape(-1))
     for target_num in img_vals:
         if target_num > 0:
-	@@ -48,7 +48,7 @@ def get_image_info(base_dir, file_path, image_poses):
+            try:
+                box = get_bounding_box(target_num, base_dir/file_path) # [x,y,width,height]
+                pose = image_poses[file_path] # [x, y, theta]
+                target_lst_box[target_num-1].append(box) # bouncing box of target
+                target_lst_pose[target_num-1].append(np.array(pose).reshape(3,)) # robot pose
+            except ZeroDivisionError:
                 pass
 
     # if there are more than one objects of the same type, combine them
@@ -48,7 +53,7 @@ def get_image_info(base_dir, file_path, image_poses):
             box = np.stack(target_lst_box[i], axis=1)
             pose = np.stack(target_lst_pose[i], axis=1)
             completed_img_dict[i+1] = {'target': box, 'robot': pose}
-
+        
     return completed_img_dict
 
 # estimate the pose of a target based on size and location of its bounding box in the robot's camera view and the robot's pose
