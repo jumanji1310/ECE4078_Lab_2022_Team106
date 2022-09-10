@@ -11,16 +11,20 @@ import cv2
 
 class Detector:
     def __init__(self, ckpt, use_gpu=False):
-        self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=ckpt)#load model and weights, 
-        
-        #use CUDA for inference
+        self.args = args
+        self.model = Resnet18Skip(args)
         if torch.cuda.torch.cuda.device_count() > 0 and use_gpu:
             self.use_gpu = True
             self.model = self.model.cuda()
         else:
             self.use_gpu = False
-
-        self.model.eval() #set model to evaluation mode
+        self.load_weights(ckpt)
+        self.model = self.model.eval()
+        cmd_printer.divider(text="warning")
+        print('This detector uses "RGB" input convention by default')
+        print('If you are using Opencv, the image is likely to be in "BRG"!!!')
+        cmd_printer.divider()
+        self.colour_code = np.array([(220, 220, 220), (128, 0, 0), (128, 128, 0), (0, 128, 0), (192, 68, 0), (0, 0, 255)])
 
     def detect_single_image(self, np_img):
         torch_img = self.np_img2torch(np_img)

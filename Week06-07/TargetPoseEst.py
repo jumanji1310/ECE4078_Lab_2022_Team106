@@ -91,7 +91,7 @@ def estimate_pose(base_dir, camera_matrix, completed_img_dict):
 
         b = box[3][0] #height of object
         B = true_height #true height
-        a = 5.502573000465266659e+02 #focal length Fx, top left of camera matrix
+        a = focal_length #focal length Fx, top left of camera matrix
 
         A = a*B/b #depth of object
 
@@ -217,7 +217,7 @@ if __name__ == "__main__":
     with open(base_dir/'lab_output/images.txt') as fp:
         for line in fp.readlines():
             pose_dict = ast.literal_eval(line)
-            image_poses[pose_dict['imgfname']] = pose_dict['pose']
+            image_poses[pose_dict['imgfname']] = pose_dict['pose'] # output as {'filename': [[x],[y],[theta]],'filename': [[x],[y],[theta]],...}
 
     # estimate pose of targets in each detector output
     target_map = {}

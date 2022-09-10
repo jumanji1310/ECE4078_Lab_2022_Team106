@@ -76,6 +76,6 @@ if __name__ == '__main__':
     av_dist = (apple_dist+lemon_dist+pear_dist+orange_dist+strawberry_dist)/5
     
     print("Average distances between the targets and the closest estimations:")
-    print("apple = {}, lemon = {}, pear = {}, orange = {}, strawberry = {}".format(apple_dist,lemon_dist,orange_dist,pear_dist,strawberry_dist))
+    print("apple = {}, lemon = {}, pear = {}, orange = {}, strawberry = {}".format(apple_dist,lemon_dist,pear_dist,orange_dist,strawberry_dist))
     print("estimation error: ", av_dist)
 
