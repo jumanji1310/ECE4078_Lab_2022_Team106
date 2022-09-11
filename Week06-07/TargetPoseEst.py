@@ -34,20 +34,19 @@ def get_image_info(base_dir, file_path, image_poses):
             y = (ymin + ymax)/2
             width = xmax - xmin
             height = ymax - ymin
-            
+
             box = [x, y, width, height]
             pose = image_poses[file_path] #[x, y, theta]
             target_num = fruit['class']
-            target_lst_box[target_num-1].append(box)
-            target_lst_pose[target_num-1].append(np.array(pose).reshape(3,)) # robot pose
-
+            target_lst_box[target_num].append(box)
+            target_lst_pose[target_num].append(np.array(pose).reshape(3,)) # robot pose
 
     # if there are more than one objects of the same type, combine them
     for i in range(5):
         if len(target_lst_box[i])>0:
             box = np.stack(target_lst_box[i], axis=1)
             pose = np.stack(target_lst_pose[i], axis=1)
-            completed_img_dict[i+1] = {'target': box, 'robot': pose}
+            completed_img_dict[i] = {'target': box, 'robot': pose}
     return completed_img_dict
 
 # estimate the pose of a target based on size and location of its bounding box in the robot's camera view and the robot's pose
@@ -206,7 +205,7 @@ if __name__ == "__main__":
     fileK = "{}intrinsic.txt".format('./calibration/param/')
     camera_matrix = np.loadtxt(fileK, delimiter=',')
     base_dir = Path('./')
- 
+
 
     # a dictionary of all the saved detector outputs
     image_poses = {}
