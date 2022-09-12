@@ -1,4 +1,7 @@
-
+### Notes ###
+- yolov5-physical.pt and yolov5-sim.pt are in the Week06-07 Folder
+- detector.py, TargetPoseEst and operate.py has been changed.
+- param folder has been split into sim and physical
 
 <-- Setup for yolov5 -->
 
@@ -33,7 +36,7 @@ python3 operate.py --ckpt yolov5-sim.pt
 
 ### Outputs to lab_output/targets.txt ###
 cd "ECE4078_Lab_2022_Team106/Week06-07/"
-python3 TargetPoseEst.py
+python3 TargetPoseEstSim.py
 
 <-- Run evaluation (REPLACE FruitMap.txt with MarkingMap.txt) -->
 python3 CV_eval.py --truth FruitMap.txt lab_output/targets.txt
@@ -57,7 +60,7 @@ python3 operate.py --ckpt yolov5-physical.pt --ip 192.168.50.1 --port 8080
 
 ### Outputs to lab_output/targets.txt ###
 cd "ECE4078_Lab_2022_Team106/Week06-07/"
-python3 TargetPoseEst.py
+python3 TargetPoseEstPhy.py
 
 <-- Run evaluation (REPLACE FruitMap.txt with MarkingMap.txt) -->
 python3 CV_eval.py --truth FruitMap.txt lab_output/targets.txt
