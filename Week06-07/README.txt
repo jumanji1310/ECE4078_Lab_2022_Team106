@@ -3,6 +3,8 @@
 - detector.py, TargetPoseEst and operate.py has been changed.
 - param folder has been split into sim and physical
 
+@@ MAKE SURE TO DELETE/MOVE files in lab_output in between SIMULATION/PHYSICAL robots to avoid outputs from both getting mixed up @@
+
 <-- Setup for yolov5 -->
 
 ### Run the following commands to initalise environement for yolov5 ###
