@@ -62,12 +62,12 @@ def estimate_pose(base_dir, camera_matrix, completed_img_dict):
     lemon_dimensions = [0.060588, 0.059299, 0.053017]
     lemon_dimensions = [0, 0, 0.06] #6cm
     target_dimensions.append(lemon_dimensions)
-    pear_dimensions = [0.0946, 0.0948, 0.135]
-    pear_dimensions = [0, 0, 0.11] #11cm
-    target_dimensions.append(pear_dimensions)
     orange_dimensions = [0.0721, 0.0771, 0.0739]
     orange_dimensions = [0, 0, 0.08] #8cm
     target_dimensions.append(orange_dimensions)
+    pear_dimensions = [0.0946, 0.0948, 0.135]
+    pear_dimensions = [0, 0, 0.11] #11cm
+    target_dimensions.append(pear_dimensions)
     strawberry_dimensions = [0.052, 0.0346, 0.0376]
     strawberry_dimensions = [0, 0, 0.045] #4.5cm
     target_dimensions.append(strawberry_dimensions)
