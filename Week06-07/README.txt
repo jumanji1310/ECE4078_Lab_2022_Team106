@@ -6,6 +6,7 @@
 - param folder has been split into sim and physical
 - catkin_ws and ECE4078_Lab_2022_Team106 should be in home
 
+
 ## IMPORTANT for MARKING ##
 - Images must be taken from operate.py using "p" and "n" to generate necessary text files otherwise
   TargetPoseEstSim.py and TargetPoseEstPhy.py won't work
@@ -24,6 +25,9 @@ pip install -r requirements.txt  # install
 
 <-- SIMULATION -->
 
+# Might have to use the following to fix permission issues
+chmod 777 -R ./
+
 <-- Launch environment -->
 (new terminal)
 source ~/catkin_ws/devel/setup.bash
@@ -34,11 +38,18 @@ roslaunch penguinpi_gazebo ECE4078_brick.launch
 source ~/catkin_ws/devel/setup.bash
 rosrun penguinpi_gazebo scene_manager.py -l FruitMap.txt
 
+## Might have to rebuild if there's errors by deleting "build" folder and catkin build ###
+	-- OR --
+Launch environment however it's meant to be launched
+
+
 <-- Run operate.py -->
 ### It'll take a while on initial load to download models from github and load custom weights ###
 (new terminal)
-cd "ECE4078_Lab_2022_Team106/Week06-07/"
-python3 operate.py --ckpt yolo-sim.pt
+cd "M3_106/MECE4078_Lab_2022_Team106/Week06-07/"
+python3 operate.py --ckpt yolo-sim.pt 
+### Use the following if CUDA error occurs to force it to not use CUDA """
+export CUDA_VISIBLE_DEVICES="" 
 
 ### Hit Enter to enter SLAM, p to detect and display bounding boxes for detected fruits, n to save outputs. ###
 ### All fruits with bounding boxes will be used for calculation (compared to default max of 1 fruit per type) and a corresponding
@@ -48,23 +59,29 @@ python3 operate.py --ckpt yolo-sim.pt
 
 ### Outputs to lab_output/targets.txt ###
 (new terminal)
-cd "ECE4078_Lab_2022_Team106/Week06-07/"
+cd "M3_106/ECE4078_Lab_2022_Team106/Week06-07/"
 python3 TargetPoseEstSim.py
 
 <-- Run evaluation (REPLACE FruitMap.txt with MarkingMap.txt) -->
-python3 CV_eval.py --truth FruitMap.txt lab_output/targets.txt
+python3 CV_eval.py --truth FruitMap.txt --est lab_output/targets.txt
 
 #########################################################
 
 <-- PHYSICAL -->
+
+# Might have to use the following to fix permission issues
+chmod 777 -R ./
 
 <-- Run operate.py -->
 ### It'll take a while on initial load to download models from github and load custom weights ###
 
 ### Replace with corresponding ip address and port ###
 (new terminal)
-cd "ECE4078_Lab_2022_Team106/Week06-07/"
+cd "M3_106/ECE4078_Lab_2022_Team106/Week06-07/"
 python3 operate.py --ckpt yolo-phy.pt --ip 192.168.50.1 --port 8080
+### Use the following if CUDA error occurs to force it to not use CUDA """
+export CUDA_VISIBLE_DEVICES="" 
+
 
 ### Hit Enter to enter SLAM, p to detect and display bounding boxes for detected fruits, n to save outputs. ###
 ### All fruits with bounding boxes will be used for calculation (compared to default max of 1 fruit per type) and a corresponding
@@ -74,8 +91,8 @@ python3 operate.py --ckpt yolo-phy.pt --ip 192.168.50.1 --port 8080
 
 ### Outputs to lab_output/targets.txt ###
 (new terminal)
-cd "ECE4078_Lab_2022_Team106/Week06-07/"
+cd "M3_106/ECE4078_Lab_2022_Team106/Week06-07/"
 python3 TargetPoseEstPhy.py
 
 <-- Run evaluation (REPLACE FruitMap.txt with MarkingMap.txt) -->
-python3 CV_eval.py --truth FruitMap.txt lab_output/targets.txt
+python3 CV_eval.py --truth FruitMap.txt --est lab_output/targets.txt
