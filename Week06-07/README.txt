@@ -1,8 +1,12 @@
 ### Notes ###
-- yolov5-physical.pt and yolov5-sim.pt are in the Week06-07 Folder
+- yolo-phy.pt and yolo-sim.pt are in the Week06-07 Folder
 - detector.py, TargetPoseEst and operate.py has been changed.
 - param folder has been split into sim and physical
-- Images must be taken from operate.py using "p" and "n" to generate necessary text files
+
+## IMPORTANT for MARKING ##
+- Images must be taken from operate.py using "p" and "n" to generate necessary text files otherwise
+  TargetPoseEstSim.py and TargetPoseEstPhy.py won't work
+- If using groundtruth robot poses, must replace pose values for each prediction in images.txt
 
 @@ MAKE SURE TO DELETE/MOVE files in lab_output in between SIMULATION/PHYSICAL robots to avoid outputs from both getting mixed up @@
 
@@ -18,16 +22,18 @@ pip install -r requirements.txt  # install
 <-- SIMULATION -->
 
 <-- Launch environment -->
+(new terminal)
 source ~/catkin_ws/devel/setup.bash
 roslaunch penguinpi_gazebo ECE4078_brick.launch
 
 <-- Load map (REPLACE FruitMap.txt with MarkingMap.txt) -->
+(new terminal)
 source ~/catkin_ws/devel/setup.bash
 rosrun penguinpi_gazebo scene_manager.py -l FruitMap.txt
 
 <-- Run operate.py -->
 ### It'll take a while on initial load to download models from github and load custom weights ###
-
+(new terminal)
 cd "ECE4078_Lab_2022_Team106/Week06-07/"
 python3 operate.py --ckpt yolo-sim.pt
 
@@ -38,6 +44,7 @@ python3 operate.py --ckpt yolo-sim.pt
 <-- Run TargetPoseEst.py -->
 
 ### Outputs to lab_output/targets.txt ###
+(new terminal)
 cd "ECE4078_Lab_2022_Team106/Week06-07/"
 python3 TargetPoseEstSim.py
 
@@ -52,8 +59,9 @@ python3 CV_eval.py --truth FruitMap.txt lab_output/targets.txt
 ### It'll take a while on initial load to download models from github and load custom weights ###
 
 ### Replace with corresponding ip address and port ###
+(new terminal)
 cd "ECE4078_Lab_2022_Team106/Week06-07/"
-python3 operate.py --ckpt yolov5-physical.pt --ip 192.168.50.1 --port 8080
+python3 operate.py --ckpt yolo-phy.pt --ip 192.168.50.1 --port 8080
 
 ### Hit Enter to enter SLAM, p to detect and display bounding boxes for detected fruits, n to save outputs. ###
 ### All fruits with bounding boxes will be used for calculation (compared to default max of 1 fruit per type) and a corresponding
@@ -62,6 +70,7 @@ python3 operate.py --ckpt yolov5-physical.pt --ip 192.168.50.1 --port 8080
 <-- Run TargetPoseEst.py -->
 
 ### Outputs to lab_output/targets.txt ###
+(new terminal)
 cd "ECE4078_Lab_2022_Team106/Week06-07/"
 python3 TargetPoseEstPhy.py
 
