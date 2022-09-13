@@ -1,7 +1,10 @@
 ### Notes ###
-- yolo-phy.pt and yolo-sim.pt are in the Week06-07 Folder
+- Download yolo-phy.pt from here https://drive.google.com/file/d/1gHooid_QF7BXJ4egS8WPjlGw1MkBhu3t/view?usp=sharing
+- Download yolo-sim.py from here https://drive.google.com/file/d/1-wSqR_y7in-RNGYUgSS7_4AfK6efEvUe/view?usp=sharing
+- yolo-phy.pt and yolo-sim.pt should be placed in the Week06-07 Folder
 - detector.py, TargetPoseEst and operate.py has been changed.
 - param folder has been split into sim and physical
+- catkin_ws and ECE4078_Lab_2022_Team106 should be in home
 
 ## IMPORTANT for MARKING ##
 - Images must be taken from operate.py using "p" and "n" to generate necessary text files otherwise
@@ -12,7 +15,7 @@
 
 <-- Setup for yolov5 -->
 
-### Run the following commands to initalise environment for yolov5 in "Week06-07" folder ###
+### Run the following commands to initalise environment for yolov5 ###
 git clone https://github.com/ultralytics/yolov5  # clone
 cd yolov5
 pip install -r requirements.txt  # install
