@@ -12,7 +12,7 @@
 
 <-- Setup for yolov5 -->
 
-### Run the following commands to initalise environement for yolov5 ###
+### Run the following commands to initalise environment for yolov5 in "Week06-07" folder ###
 git clone https://github.com/ultralytics/yolov5  # clone
 cd yolov5
 pip install -r requirements.txt  # install
