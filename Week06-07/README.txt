@@ -2,6 +2,7 @@
 - yolov5-physical.pt and yolov5-sim.pt are in the Week06-07 Folder
 - detector.py, TargetPoseEst and operate.py has been changed.
 - param folder has been split into sim and physical
+- Images must be taken from operate.py using "p" and "n" to generate necessary text files
 
 @@ MAKE SURE TO DELETE/MOVE files in lab_output in between SIMULATION/PHYSICAL robots to avoid outputs from both getting mixed up @@
 
@@ -28,7 +29,7 @@ rosrun penguinpi_gazebo scene_manager.py -l FruitMap.txt
 ### It'll take a while on initial load to download models from github and load custom weights ###
 
 cd "ECE4078_Lab_2022_Team106/Week06-07/"
-python3 operate.py --ckpt yolov5-sim.pt
+python3 operate.py --ckpt yolo-sim.pt
 
 ### Hit Enter to enter SLAM, p to detect and display bounding boxes for detected fruits, n to save outputs. ###
 ### All fruits with bounding boxes will be used for calculation (compared to default max of 1 fruit per type) and a corresponding

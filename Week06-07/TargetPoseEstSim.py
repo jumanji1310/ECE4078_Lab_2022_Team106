@@ -122,7 +122,6 @@ def calc_distance(x1, x2, y1, y2):
     return np.sqrt((x1-x2)**2+(y1-y2)**2)
 
 def average_fruit_location(fruit_est):
-    print(len(fruit_est))
     while len(fruit_est) > 2:
         min_dist = 9999
         #find two points close to each other
