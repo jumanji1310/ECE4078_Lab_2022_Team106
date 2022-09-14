@@ -98,27 +98,57 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
 # additional improvements:
 # you may use different motion model parameters for robot driving on its own or driving while pushing a fruit
 # try changing to a fully automatic delivery approach: develop a path-finding algorithm that produces the waypoints
+
 def drive_to_point(waypoint, robot_pose):
-    # imports camera / wheel calibration parameters 
-    fileS = "calibration/param/scale.txt"
-    scale = np.loadtxt(fileS, delimiter=',')
-    fileB = "calibration/param/baseline.txt"
-    baseline = np.loadtxt(fileB, delimiter=',')
-    
+    # imports camera / wheel calibration parameters
+    fileS = "calibration/param/sim/scale.txt"
+    scale = np.loadtxt(fileS, delimiter=',') # meters/tick
+    fileB = "calibration/param/sim/baseline.txt"
+    baseline = np.loadtxt(fileB, delimiter=',') # meters
+
     ####################################################
     # TODO: replace with your codes to make the robot drive to the waypoint
     # One simple strategy is to first turn on the spot facing the waypoint,
     # then drive straight to the way point
 
-    wheel_vel = 30 # tick
-    
+    waypoint_x = waypoint[0]
+    waypoint_y = waypoint[1]
+    robot_x = robot_pose[0]
+    robot_y = robot_pose[1]
+    robot_theta = robot_pose[2]
+    waypoint_angle = np.arctan2((waypoint_y-robot_y),(waypoint_x-robot_x))
+
+    angle = robot_theta - waypoint_angle
+
+    distance = np.sqrt((waypoint_x-robot_x)**2 + (waypoint_y-robot_y)**2) #calculates distance between robot and object
+
+    print(f'Turn {angle} and drive {distance}')
+
+    wheel_vel = 30 #ticks
+    # Convert to m/s
+    left_speed_m = wheel_vel * scale
+    right_speed_m = wheel_vel * scale
+
+    # Compute the linear and angular velocity
+    linear_velocity = (left_speed_m + right_speed_m) / 2.0
+
+    # Convert to m/s
+    left_speed_m = -wheel_vel * scale
+    right_speed_m = wheel_vel * scale
+
+    angular_velocity = (right_speed_m - left_speed_m) / baseline
+
+    print(f'Ang vel is {angular_velocity}')
     # turn towards the waypoint
-    turn_time = 0.0 # replace with your calculation
+    turn_time = abs(angle/angular_velocity)
+
     print("Turning for {:.2f} seconds".format(turn_time))
-    ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
-    
+    if angle >= 0:
+        ppi.set_velocity([0, -1], turning_tick=wheel_vel, time=turn_time)
+    else:
+        ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
     # after turning, drive straight to the waypoint
-    drive_time = 0.0 # replace with your calculation
+    drive_time = distance/linear_velocity
     print("Driving for {:.2f} seconds".format(drive_time))
     ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
     ####################################################
@@ -132,7 +162,7 @@ def get_robot_pose():
     # We STRONGLY RECOMMEND you to use your SLAM code from M2 here
 
     # update the robot pose [x,y,theta]
-    robot_pose = [0.0,0.0,0.0] # replace with your calculation
+    robot_pose
     ####################################################
 
     return robot_pose
