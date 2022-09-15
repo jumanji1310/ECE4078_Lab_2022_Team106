@@ -103,7 +103,7 @@ def estimate_pose(base_dir, camera_matrix, completed_img_dict):
             x = A * np.cos(theta) #x of object w.r.t to Robot frame
 
             object_x = box[0][i] #x position of object in camera plane
-            x_from_centre = 320 - object_x# 640/2 = 320 to get the x distance from centreline
+            x_from_centre = 160 - object_x# 320/2 = 160 to get the x distance from centreline
             camera_theta = np.arctan(x_from_centre/a) #calculate angle from centreline
 
             total_theta = theta + camera_theta #angle of object w.r.t to Robot frame
