@@ -155,6 +155,8 @@ def drive_to_point(waypoint, robot_pose):
 
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
 
+    new_robot_pose = [waypoint_x, waypoint_y, waypoint_angle]
+    return new_robot_pose
 
 def get_robot_pose():
     ####################################################
@@ -182,37 +184,77 @@ if __name__ == "__main__":
     search_list = read_search_list()
     print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
 
-    waypoint = [0.0,0.0]
-    robot_pose = [0.0,0.0,0.0]
+    # waypoint = [0.0,0.0]
+    # robot_pose = [0.0,0.0,0.0]
 
-    # The following code is only a skeleton code the semi-auto fruit searching task
-    while True:
-        # enter the waypoints
-        # instead of manually enter waypoints, you can get coordinates by clicking on a map, see camera_calibration.py
-        x,y = 0.0,0.0
-        x = input("X coordinate of the waypoint: ")
-        try:
-            x = float(x)
-        except ValueError:
-            print("Please enter a number.")
-            continue
-        y = input("Y coordinate of the waypoint: ")
-        try:
-            y = float(y)
-        except ValueError:
-            print("Please enter a number.")
-            continue
+    # # The following code is only a skeleton code the semi-auto fruit searching task
+    # while True:
+    #     # enter the waypoints
+    #     # instead of manually enter waypoints, you can get coordinates by clicking on a map, see camera_calibration.py
+    #     x,y = 0.0,0.0
+    #     x = input("X coordinate of the waypoint: ")
+    #     try:
+    #         x = float(x)
+    #     except ValueError:
+    #         print("Please enter a number.")
+    #         continue
+    #     y = input("Y coordinate of the waypoint: ")
+    #     try:
+    #         y = float(y)
+    #     except ValueError:
+    #         print("Please enter a number.")
+    #         continue
 
-        # estimate the robot's pose
-        robot_pose = get_robot_pose()
+    #     # estimate the robot's pose
+    #     robot_pose = get_robot_pose()
 
-        # robot drives to the waypoint
-        waypoint = [x,y]
-        drive_to_point(waypoint,robot_pose)
-        print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
+    #     # robot drives to the waypoint
+    #     waypoint = [x,y]
+    #     drive_to_point(waypoint,robot_pose)
+    #     print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
 
-        # exit
-        ppi.set_velocity([0, 0])
-        uInput = input("Add a new waypoint? [Y/N]")
-        if uInput == 'N':
-            break
+    #     # exit
+    #     ppi.set_velocity([0, 0])
+    #     uInput = input("Add a new waypoint? [Y/N]")
+    #     if uInput == 'N':
+    #         break
+
+
+    from path_planning.RRT import *
+    #Set parameters
+    goal = np.array([1.25, 1.25]) + 1.5
+    start = np.array([0, 0]) + 1.5
+
+    # all_obstacles = read_obstacles
+
+    obstacles = [[1,1],[-0.5,0.5],[1,-0.5]]
+    for i in range(len(obstacles)):
+        x, y = obstacles[i]
+        obstacles[i] = [x + 1.5, y + 1.5]
+    print(obstacles)
+    all_obstacles = generate_path_obstacles(obstacles)
+
+    rrtc = RRT(start=start, goal=goal, width=3, height=3, obstacle_list=all_obstacles,
+            expand_dis=0.5, path_resolution=0.25)
+    path = rrtc.planning()[::-1]
+
+    img = cv2.imread("path_planning/grid.png")
+    img = draw_obstacles(img, obstacles)
+    img = draw_path(img, path)
+
+    for i in range(len(path)):
+        x, y = path[i]
+        path[i] = [x - 1.5, y - 1.5]
+    print(f'The path is {path}')
+
+    cv2.imshow('image',img)
+    cv2.waitKey(0)
+
+    robot_pose = [0,0,0]
+    for waypoint in path[1:]:
+        print(f'Driving to waypoint {waypoint}')
+        robot_pose = drive_to_point(waypoint, robot_pose)
+        print(f'Finished driving to waypoint {waypoint}')
+
+
+
