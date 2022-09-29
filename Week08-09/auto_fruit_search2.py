@@ -99,7 +99,7 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
 # you may use different motion model parameters for robot driving on its own or driving while pushing a fruit
 # try changing to a fully automatic delivery approach: develop a path-finding algorithm that produces the waypoints
 
-def drive_to_point(waypoint, robot_pose):
+def drive_to_point(waypoint, robot_pose, ppi):
     # imports camera / wheel calibration parameters
     fileS = "calibration/param/sim/scale.txt"
     scale = np.loadtxt(fileS, delimiter=',') # meters/tick
@@ -117,12 +117,21 @@ def drive_to_point(waypoint, robot_pose):
     robot_y = robot_pose[1]
     robot_theta = robot_pose[2]
     waypoint_angle = np.arctan2((waypoint_y-robot_y),(waypoint_x-robot_x))
+    print(waypoint_angle, robot_theta)
 
-    angle = waypoint_angle - robot_theta
+    angle1 = waypoint_angle - robot_theta
+    if waypoint_angle < 0:
+        angle2 = waypoint_angle - robot_theta + 2*np.pi
+    else:
+        angle2 = waypoint_angle - robot_theta - 2*np.pi
+
+    if abs(angle1) > abs(angle2):
+        angle = angle2
+    else:
+        angle = angle1
 
     distance = np.sqrt((waypoint_x-robot_x)**2 + (waypoint_y-robot_y)**2) #calculates distance between robot and object
 
-    print(f'Driving from {robot_x},{robot_y} to {waypoint_x},{waypoint_y}')
     print(f'Turn {angle} and drive {distance}')
 
     wheel_vel = 30 #ticks
@@ -139,30 +148,25 @@ def drive_to_point(waypoint, robot_pose):
 
     angular_velocity = (right_speed_m - left_speed_m) / baseline
 
+    print(f'Ang vel is {angular_velocity}')
     # turn towards the waypoint
     turn_time = abs(angle/angular_velocity)
 
     print("Turning for {:.2f} seconds".format(turn_time))
     if angle >= 0:
-        # lv1, rv1 = ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
-        command1 = [0, 1]
-        time1 = turn_time
+        lv1, rv1 = ppi.set_velocity([0, 1], turning_tick=wheel_vel, time=turn_time)
     else:
-        # lv1, rv1 = ppi.set_velocity([0, -1], turning_tick=wheel_vel, time=turn_time)
-        command1 = [0, -1]
-        time1 = turn_time
+        lv1, rv1 = ppi.set_velocity([0, -1], turning_tick=wheel_vel, time=turn_time)
     # after turning, drive straight to the waypoint
     drive_time = distance/linear_velocity
     print("Driving for {:.2f} seconds".format(drive_time))
-    # lv2, rv2 = ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
-    command2 = [1,0]
-    time2 = drive_time
+    lv2, rv2 = ppi.set_velocity([1, 0], tick=wheel_vel, time=drive_time)
     ####################################################
 
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
 
-    # new_robot_pose = [waypoint_x, waypoint_y, waypoint_angle]
-    return [[command1,time1],[command2,time2]]
+    new_robot_pose = [waypoint_x, waypoint_y, waypoint_angle]
+    return new_robot_pose
 
 def get_robot_pose():
     ####################################################
@@ -174,15 +178,6 @@ def get_robot_pose():
     ####################################################
 
     return robot_pose
-
-def generate_command_from_paths(paths):
-    commands = []
-    for path in paths:
-        #driving based on path
-        for waypoint in path[1:]:
-            robot_pose, waypoint_command = drive_to_point(waypoint, robot_pose, ppi)
-            commands.append(waypoint_command)
-    return commands
 
 # main loop
 if __name__ == "__main__":
@@ -257,7 +252,7 @@ if __name__ == "__main__":
 
 
         rrtc = RRT(start=start, goal=goal, width=3, height=3, obstacle_list=all_obstacles,
-                expand_dis=0.2, path_resolution=0.05)
+                expand_dis=1, path_resolution=0.5)
         path = rrtc.planning()[::-1] #reverse path
 
 
@@ -278,16 +273,15 @@ if __name__ == "__main__":
     cv2.imshow('image',img)
     cv2.waitKey(0)
 
-    generate_command_from_paths(paths)
-    # for path in paths:
-    #     #driving based on path
-    #     for waypoint in path[1:]:
-    #         print(f'Driving to waypoint {waypoint}')
-    #         robot_pose = drive_to_point(waypoint, robot_pose, ppi)
-    #         print(f'Finished driving to waypoint {waypoint}')
-        # time.sleep(3) #stop for 3 seconds
+    for path in paths:
+        #driving based on path
+        for waypoint in path[1:]:
+            print(f'Driving to waypoint {waypoint}')
+            robot_pose = drive_to_point(waypoint, robot_pose, ppi)
+            print(f'Finished driving to waypoint {waypoint}')
+        time.sleep(3) #stop for 3 seconds
 
-    #     # start = np.array(robot_pose[:2]) + 1.5 #update starting location based on robot pose
+        start = np.array(robot_pose[:2]) + 1.5 #update starting location based on robot pose
 
 
 

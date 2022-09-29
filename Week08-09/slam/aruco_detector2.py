@@ -14,7 +14,7 @@ class aruco_detector:
         self.marker_length = marker_length
         self.aruco_params = cv2.aruco.DetectorParameters_create()
         self.aruco_dict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_100)
-
+    
     def detect_marker_positions(self, img):
         # Perform detection
         corners, ids, rejected = cv2.aruco.detectMarkers(
@@ -29,7 +29,6 @@ class aruco_detector:
         # Compute the marker positions
         measurements = []
         seen_ids = []
-
         for i in range(len(ids)):
             idi = ids[i,0]
             # Some markers appear multiple times but should only be handled once.
@@ -38,18 +37,13 @@ class aruco_detector:
             else:
                 seen_ids.append(idi)
 
-            sys.path.append(".")
-            import auto_fruit_search
-            a,b, aruco = auto_fruit_search.read_true_map("M4_true_map.txt")
-            coordinate = np.array([[aruco[idi-1][0]],[aruco[idi-1][1]]])
-
             lm_tvecs = tvecs[ids==idi].T
             lm_bff2d = np.block([[lm_tvecs[2,:]],[-lm_tvecs[0,:]]])
             lm_bff2d = np.mean(lm_bff2d, axis=1).reshape(-1,1)
 
-            lm_measurement = measure.Marker(coordinate, idi)
+            lm_measurement = measure.Marker(lm_bff2d, idi)
             measurements.append(lm_measurement)
-
+        
         # Draw markers on image copy
         img_marked = img.copy()
         cv2.aruco.drawDetectedMarkers(img_marked, corners, ids)
