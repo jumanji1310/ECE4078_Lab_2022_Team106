@@ -386,6 +386,34 @@ if __name__ == "__main__":
                     operate.draw(canvas)
                     pygame.display.update()
         else:
+            import matplotlib
+            import matplotlib.pyplot as plt
+            from auto_fruit_search2 import drive_to_point
+            matplotlib.use("TkAgg")
+            from machinevisiontoolbox import Image, CentralCamera
+            # Display image
+            image = Image('grid.png', grey=True)
+            fig = matplotlib.pyplot.figure()
+            plt.imshow(image.image, cmap='gray')
+            robot_pose = [0.0,0.0,0.0]
+            waypoint = [0, 0]
+            # pick points
+            def onclick(event):
+                global robot_pose
+                if event.button == 1:
+                    # left mouse click, add point and increment by 1
+                    x = (event.xdata - 150)/100
+                    y = -(event.ydata - 150)/100
+                    print(x, y)
+                    # waypoint = [x,y]
+                    # robot_pose = drive_to_point(waypoint,robot_pose, ppi)
+                    # print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
+                    # ppi.set_velocity([0, 0])
+                    plt.close()
+            print("Click point")
+            fig.canvas.set_window_title('Control robot')
+            ka = fig.canvas.mpl_connect('button_press_event', onclick)
+            plt.show()
             operate.update_keyboard()
             operate.take_pic()
             drive_meas = operate.control()

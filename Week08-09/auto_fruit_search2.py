@@ -107,9 +107,6 @@ def drive_to_point(waypoint, robot_pose, ppi):
     baseline = np.loadtxt(fileB, delimiter=',') # meters
 
     ####################################################
-    # TODO: replace with your codes to make the robot drive to the waypoint
-    # One simple strategy is to first turn on the spot facing the waypoint,
-    # then drive straight to the way point
 
     waypoint_x = waypoint[0]
     waypoint_y = waypoint[1]
@@ -117,8 +114,10 @@ def drive_to_point(waypoint, robot_pose, ppi):
     robot_y = robot_pose[1]
     robot_theta = robot_pose[2]
     waypoint_angle = np.arctan2((waypoint_y-robot_y),(waypoint_x-robot_x))
-    print(waypoint_angle, robot_theta)
 
+    print(f'Waypoint angle {waypoint_angle} and robot angle {robot_theta}')
+
+    #Calculate smallest angle
     angle1 = waypoint_angle - robot_theta
     if waypoint_angle < 0:
         angle2 = waypoint_angle - robot_theta + 2*np.pi
@@ -197,6 +196,7 @@ if __name__ == "__main__":
     # LEVEL 1 CODE
     # import matplotlib
     # import matplotlib.pyplot as plt
+    # matplotlib.use("TkAgg")
     # from machinevisiontoolbox import Image, CentralCamera
     # # Display image
     # image = Image('grid.png', grey=True)
