@@ -26,6 +26,7 @@ import slam.aruco_detector as aruco
 sys.path.insert(0,"{}/network/".format(os.getcwd()))
 sys.path.insert(0,"{}/network/scripts".format(os.getcwd()))
 from network.scripts.detector import Detector
+from M4_pose_est_sim import estimate_fruit_pose
 
 class Operate:
     def __init__(self, args):
@@ -79,7 +80,7 @@ class Operate:
             self.detector = None
             self.network_vis = cv2.imread('pics/8bit/detector_splash.png')
         else:
-            # self.detector = Detector(args.ckpt, use_gpu=True)
+            self.detector = Detector(args.ckpt, use_gpu=True)
             self.network_vis = np.ones((240, 320,3))* 100
             self.grid = cv2.imread('grid.png')
         self.bg = pygame.image.load('pics/gui_mask.jpg')
@@ -158,11 +159,11 @@ class Operate:
 
     # SLAM with ARUCO markers
     def update_slam(self, drive_meas):
-        # self.detector_output, self.aruco_img, self.bounding_boxes, pred_count = self.detector.detect_single_image(self.img)
+        self.detector_output, self.aruco_img, self.bounding_boxes, pred_count = self.detector.detect_single_image(self.img)
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
-        # fruit_dict = estimate_fruit_pose(self.bounding_boxes, self.robot_pose)
-        # lms_fruit = self.detect_fruit_pos(fruit_dict)
-        # lms = lms + lms_fruit
+        fruit_dict = estimate_fruit_pose(self.bounding_boxes, self.robot_pose)
+        lms_fruit = self.detect_fruit_pos(fruit_dict)
+        lms = lms + lms_fruit
         if self.request_recover_robot:
             is_success = self.ekf.recover_from_pause(lms)
             if is_success:

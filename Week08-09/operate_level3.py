@@ -27,6 +27,9 @@ sys.path.insert(0,"{}/network/".format(os.getcwd()))
 sys.path.insert(0,"{}/network/scripts".format(os.getcwd()))
 from network.scripts.detector import Detector
 
+# import path planning components for M4
+from path_planning.RRT import *
+
 class Operate:
     def __init__(self, args):
         self.folder = 'pibot_dataset/'
@@ -79,7 +82,7 @@ class Operate:
             self.detector = None
             self.network_vis = cv2.imread('pics/8bit/detector_splash.png')
         else:
-            # self.detector = Detector(args.ckpt, use_gpu=True)
+            self.detector = Detector(args.ckpt, use_gpu=False)
             self.network_vis = np.ones((240, 320,3))* 100
             self.grid = cv2.imread('grid.png')
         self.bg = pygame.image.load('pics/gui_mask.jpg')
@@ -91,11 +94,14 @@ class Operate:
         self.waypoints = []
         self.wp = [0,0]
         self.min_dist = 50
-        self.wp_clicked = False
+        self.auto_path = False
         self.taglist = []
         self.P = np.zeros((3,3))
         self.marker_gt = np.zeros((2,10))
-        self.init_lm_cov = 1e-4
+        self.init_lm_cov = 1e-6 #1e-4
+        self.paths = [[[0,0],[0.5,0.5]],[[0.5,0.5],[1,1]],[[1,1],[1,0.5]]]
+        self.path_idx = 0
+
         #control
         self.tick = 30
         self.turning_tick = 5
@@ -109,9 +115,10 @@ class Operate:
         self.marker_gt, self.taglist, self.P = self.parse_slam_map(self.fruit_list, self.fruit_true_pos, self.aruco_true_pos)
         self.ekf.load_map(self.marker_gt, self.taglist, self.P)
 
-        #Printing search list
+        #Generating paths from search list
         self.search_list = self.read_search_list()
         print(f'Fruit search order: {self.search_list}')
+        self.generate_paths()
 
     # wheel control
     def control(self):
@@ -137,7 +144,6 @@ class Operate:
         for fruit in dictionary.keys():
             x = dictionary[fruit]['x']
             y = dictionary[fruit]['y']
-            print(f'{fruit} at {x}, {y}')
             lm_measurement = measure.Marker(np.array([x,y]),fruit)
             measurements.append(lm_measurement)
         return measurements
@@ -156,10 +162,65 @@ class Operate:
 
         return search_list
 
+    def generate_paths(self):
+        #getting index of fruits to be searched
+        fruit_list_dict = dict(zip(self.fruit_list,range(len(self.fruit_list))))
+        all_fruits = [x for x in range(len(self.fruit_list))]
+        search_fruits = [fruit_list_dict[x] for x in self.search_list]
+        other_fruits = list((set(all_fruits) | set(search_fruits)) - (set(all_fruits) & set(search_fruits)))
+
+        #adding markers as obstacles
+        obstacles = []
+        for x,y in self.aruco_true_pos:
+            obstacles.append([x + 1.5, y + 1.5])
+
+        #adding other fruits as obstacles
+        for idx in other_fruits:
+            x,y = self.fruit_true_pos[idx]
+            obstacles.append([x + 1.5, y + 1.5])
+
+        all_obstacles = generate_path_obstacles(obstacles, self.radius) #generating obstacles
+
+        #starting robot pose and empty paths
+        start = np.array([0,0]) + 1.5
+        paths = []
+        for idx in search_fruits:
+            location = copy.deepcopy(self.fruit_true_pos[idx])
+            offset = 0.15
+            #Stop in front of fruit
+            if location[0] > 0 and location[1] > 0:
+                location -= [offset, offset]
+            elif location[0] > 0 and location[1] < 0:
+                location -= [offset, -offset]
+            elif location[0] < 0 and location[1] > 0:
+                location -= [-offset, offset]
+            else:
+                location += [offset, offset]
+
+            print(f' {self.fruit_list[idx]} at {location}')
+            goal = np.array(location) + 1.5
+
+
+            rrtc = RRT(start=start, goal=goal, width=3, height=3, obstacle_list=all_obstacles,
+                    expand_dis=1, path_resolution=0.5)
+            path = rrtc.planning()[::-1] #reverse path
+
+            #printing path
+            for i in range(len(path)):
+                x, y = path[i]
+                path[i] = [x - 1.5, y - 1.5]
+            # print(f'The path is {path}')
+
+            #adding paths
+            paths.append(path)
+            start = np.array(goal)
+        self.paths = paths
+
     # SLAM with ARUCO markers
     def update_slam(self, drive_meas):
         # self.detector_output, self.aruco_img, self.bounding_boxes, pred_count = self.detector.detect_single_image(self.img)
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
+        # from M4_pose_est_sim import estimate_fruit_pose
         # fruit_dict = estimate_fruit_pose(self.bounding_boxes, self.robot_pose)
         # lms_fruit = self.detect_fruit_pos(fruit_dict)
         # lms = lms + lms_fruit
@@ -373,7 +434,15 @@ class Operate:
         y = int(120 - self.wp[1]*80)
         pygame.draw.line(canvas, red,(h_pad + x-5,240 + 2*v_pad + y-5), (h_pad + x + 5,240 + 2*v_pad + y + 5))
         pygame.draw.line(canvas, red,(h_pad + x + 5,240 + 2*v_pad + y-5), (h_pad + x - 5,240 + 2*v_pad + y + 5))
-        # pygame.draw.circle(canvas, red, (h_pad + x,240 + 2*v_pad + y),4)
+
+        #Draw path
+        for path in self.paths:
+            for i in range(len(path)-1):
+                x = int(path[i][0]*80 + 120)
+                y = int(120 - path[i][1]*80)
+                x2 = int(path[i+1][0]*80 + 120)
+                y2 = int(120 - path[i+1][1]*80)
+                pygame.draw.line(canvas, blue, (h_pad + x,240 + 2*v_pad + y),(h_pad + x2,240 + 2*v_pad + y2))
 
         # canvas.blit(self.gui_mask, (0, 0))
         self.put_caption(canvas, caption='SLAM', position=(2*h_pad+320, v_pad))
@@ -472,14 +541,13 @@ class Operate:
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_n:
                 self.command['save_inference'] = True
             # run auto fruit search
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                pos = pygame.mouse.get_pos()
-                if pos[0] > 20 and pos[0] < 260 and pos[1] > 320 and pos[1] < 560:
-                    wp_x = ((pos[0] - 20) - 120) / 80
-                    wp_y = (120 - (pos[1] - (240 + 2*40)))/80
-                    self.wp = [wp_x,wp_y]
-                    self.wp_clicked = True
-                    print(f'Clicked waypoint, moving to {self.wp}')
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+                self.path_idx = 0
+                self.point_idx = 1
+                self.waypoints = self.paths[self.path_idx] #set first path
+                self.wp = self.waypoints[self.point_idx] #set waypoint to second point in path
+                self.auto_path = True
+                print(f"Moving to new waypoint {self.wp}")
             # quit
             elif event.type == pygame.QUIT:
                 self.quit = True
@@ -508,11 +576,10 @@ class Operate:
         else:
             self.theta_error = theta1
 
-
         if self.forward == False:
             #Update turning tick speed depending on theta_error to waypoint
             self.turning_tick = int(abs(5 * self.theta_error) + 3)
-            print(f"Turning tick {self.turning_tick} with {self.theta_error}")
+            # print(f"Turning tick {self.turning_tick} with {self.theta_error}")
 
             if self.theta_error > 0:
                 self.command['motion'] = [0,-1]
@@ -544,7 +611,7 @@ class Operate:
         if self.forward:
             #Update tick speed depending on distance to waypoint
             self.tick = int(10 * self.distance  + 30)
-            print(f"Driving tick {self.tick} with {self.distance}")
+            # print(f"Driving tick {self.tick} with {self.distance}")
 
             #Checking if distance is increasing, stop driving
             if self.distance > self.min_dist + 0.1:
@@ -552,19 +619,32 @@ class Operate:
                 self.notification = 'Robot stopped moving'
                 self.forward = False
                 self.min_dist = 50
-                self.wp_clicked = False
                 return
 
             # Distance is decreasing
             else:
                 #Drive until goal arrived
-                distance_threshold = 0.05 #0.05
+                distance_threshold = 0.1 #0.05
                 if self.distance < distance_threshold:
                     self.command['motion'] = [0,0]
                     self.notification = 'Robot arrived'
                     self.forward = False
                     self.min_dist = 50
-                    self.wp_clicked = False
+
+                    #Check if last path and last waypoint reached
+                    if self.point_idx == len(self.waypoints) - 1: #reached last wp of path
+                        if self.path_idx == len(self.paths) - 1: #stop pathing
+                            self.auto_path = False
+                        else: #Increment path
+                            self.path_idx += 1
+                            self.waypoints = self.paths[self.path_idx]
+                            self.point_idx = 1 #reset point
+                            self.wp = self.waypoints[self.point_idx]
+                        self.pibot.set_velocity([0,0],time = 3)
+                    else: #move to next point
+                        self.point_idx += 1
+                        self.wp = self.waypoints[self.point_idx]
+                    print(f"Moving to new waypoint {self.wp}")
                     return
 
                 else:
@@ -634,7 +714,7 @@ if __name__ == "__main__":
     while start:
         operate.update_keyboard()
         operate.take_pic()
-        if operate.wp_clicked:
+        if operate.auto_path:
             operate.drive_robot()
         drive_meas = operate.control()
 
