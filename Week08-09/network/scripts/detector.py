@@ -15,7 +15,7 @@ class Detector:
         self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=ckpt)#load model and weights,
 
         #use CUDA for inference
-        if torch.cuda.torch.cuda.device_count() > 0 and use_gpu:
+        if torch.cuda.device_count() > 0 and use_gpu:
             self.use_gpu = True
             self.model = self.model.cuda()
         else:
