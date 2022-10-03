@@ -175,15 +175,6 @@ def get_robot_pose():
 
     return robot_pose
 
-def generate_command_from_paths(paths):
-    commands = []
-    for path in paths:
-        #driving based on path
-        for waypoint in path[1:]:
-            robot_pose, waypoint_command = drive_to_point(waypoint, robot_pose, ppi)
-            commands.append(waypoint_command)
-    return commands
-
 # main loop
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Fruit searching")
@@ -199,51 +190,27 @@ if __name__ == "__main__":
     search_list = read_search_list()
     print_target_fruits_pos(search_list, fruits_list, fruits_true_pos)
 
-    # LEVEL 1 CODE
-    # import matplotlib
-    # import matplotlib.pyplot as plt
-    # from machinevisiontoolbox import Image, CentralCamera
-    # # Display image
-    # image = Image('grid.png', grey=True)
-    # fig = matplotlib.pyplot.figure()
-    # plt.imshow(image.image, cmap='gray')
-    # robot_pose = [0.0,0.0,0.0]
-    # waypoint = [0, 0]
-    # # pick points
-    # def onclick(event):
-    #     global robot_pose
-    #     if event.button == 1:
-    #         # left mouse click, add point and increment by 1
-    #         x = (event.xdata - 150)/100
-    #         y = -(event.ydata - 150)/100
-    #         print(x, y)
-    #         waypoint = [x,y]
-    #         robot_pose = drive_to_point(waypoint,robot_pose, ppi)
-    #         print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
-    #         ppi.set_velocity([0, 0])
-    # print("Click point")
-    # fig.canvas.set_window_title('Control robot')
-    # ka = fig.canvas.mpl_connect('button_press_event', onclick)
-    # plt.show()
-
     # LEVEL 2 CODE
     #starting robot pose
     start = np.array([0,0]) + 1.5
     robot_pose = [0,0,0]
 
-
+    print(fruits_list)
+    print(fruits_true_pos)
+    print(search_list)
     #adding obstacles
-    obstacles = aruco_true_pos
+    obstacles = []
+    for x,y in aruco_true_pos:
+        obstacles.append([x + 1.5, y + 1.5])
+
+
     print(obstacles)
-    for i in range(len(obstacles)):
-        x, y = obstacles[i]
-        obstacles[i] = [x + 1.5, y + 1.5]
     all_obstacles = generate_path_obstacles(obstacles)
     img = cv2.imread("path_planning/grid.png")
 
     paths = []
     for location in fruits_true_pos:
-        #Approaching the location
+        #Stop in front of fruit
         if location[0] > 0 and location[1] > 0:
             location -= [0.25, 0.25]
         elif location[0] > 0 and location[1] < 0:
@@ -257,7 +224,7 @@ if __name__ == "__main__":
 
 
         rrtc = RRT(start=start, goal=goal, width=3, height=3, obstacle_list=all_obstacles,
-                expand_dis=0.2, path_resolution=0.05)
+                expand_dis=1, path_resolution=0.25)
         path = rrtc.planning()[::-1] #reverse path
 
 
@@ -278,7 +245,6 @@ if __name__ == "__main__":
     cv2.imshow('image',img)
     cv2.waitKey(0)
 
-    generate_command_from_paths(paths)
     # for path in paths:
     #     #driving based on path
     #     for waypoint in path[1:]:

@@ -5,6 +5,8 @@ import numpy as np
 import cv2
 import os, sys
 import time
+import json
+import copy
 
 # import utility functions
 sys.path.insert(0, "{}/utility".format(os.getcwd()))
@@ -24,7 +26,6 @@ import slam.aruco_detector as aruco
 sys.path.insert(0,"{}/network/".format(os.getcwd()))
 sys.path.insert(0,"{}/network/scripts".format(os.getcwd()))
 from network.scripts.detector import Detector
-
 
 class Operate:
     def __init__(self, args):
@@ -80,7 +81,31 @@ class Operate:
         else:
             self.detector = Detector(args.ckpt, use_gpu=False)
             self.network_vis = np.ones((240, 320,3))* 100
+            self.grid = cv2.imread('grid.png')
         self.bg = pygame.image.load('pics/gui_mask.jpg')
+
+        #M4 Initialisations
+        self.robot_pose = [0,0,0]
+        self.forward = False
+        self.point_idx = 1
+        self.waypoints = []
+        self.wp = [0,0]
+        self.min_dist = 50
+        self.wp_clicked = False
+        self.taglist = []
+        self.P = np.zeros((3,3))
+        self.marker_gt = np.zeros((2,10))
+        self.init_lm_cov = 1e-4
+
+        #Add known markers and fruits from map to SLAM
+        self.fruit_list, self.fruit_true_pos, self.aruco_true_pos = self.read_true_map(args.true_map)
+        self.marker_gt = np.zeros((2,len(self.aruco_true_pos) + len(self.fruit_true_pos)))
+        self.marker_gt, self.taglist, self.P = self.parse_slam_map(self.fruit_list, self.fruit_true_pos, self.aruco_true_pos)
+        self.ekf.load_map(self.marker_gt, self.taglist, self.P)
+
+        #Printing search list
+        self.search_list = self.read_search_list()
+        print(f'Fruit search order: {self.search_list}')
 
     # wheel control
     def control(self):
@@ -93,7 +118,6 @@ class Operate:
             self.data.write_keyboard(lv, rv)
         dt = time.time() - self.control_clock
         drive_meas = measure.Drive(lv, rv, dt)
-
         self.control_clock = time.time()
         return drive_meas
     # camera control
@@ -102,9 +126,37 @@ class Operate:
         if not self.data is None:
             self.data.write_image(self.img)
 
+    def detect_fruit_pos(self, dictionary):
+        measurements = []
+        for fruit in dictionary.keys():
+            x = dictionary[fruit]['x']
+            y = dictionary[fruit]['y']
+            lm_measurement = measure.Marker(np.array([x,y]),fruit)
+            measurements.append(lm_measurement)
+        return measurements
+
+    def read_search_list(self):
+        """Read the search order of the target fruits
+
+        @return: search order of the target fruits
+        """
+        search_list = []
+        with open('search_list.txt', 'r') as fd:
+            fruits = fd.readlines()
+
+            for fruit in fruits:
+                search_list.append(fruit.strip())
+
+        return search_list
+
     # SLAM with ARUCO markers
     def update_slam(self, drive_meas):
+        # self.detector_output, self.aruco_img, self.bounding_boxes, pred_count = self.detector.detect_single_image(self.img)
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
+        # from M4_pose_est_sim import estimate_fruit_pose
+        # fruit_dict = estimate_fruit_pose(self.bounding_boxes, self.robot_pose)
+        # lms_fruit = self.detect_fruit_pos(fruit_dict)
+        # lms = lms + lms_fruit
         if self.request_recover_robot:
             is_success = self.ekf.recover_from_pause(lms)
             if is_success:
@@ -179,12 +231,80 @@ class Operate:
                 self.notification = f'No prediction in buffer, save ignored'
             self.command['save_inference'] = False
 
+    def parse_slam_map(self, fruit_list, fruits_true_pos, aruco_true_pos):
+
+        #adding known aruco markers
+        for (i, pos) in enumerate(aruco_true_pos):
+            self.taglist.append(i + 1)
+            self.marker_gt[0][i] = pos[0]
+            self.marker_gt[1][i] = pos[1]
+
+            self.P = np.concatenate((self.P, np.zeros((2, self.P.shape[1]))), axis=0)
+            self.P = np.concatenate((self.P, np.zeros((self.P.shape[0], 2))), axis=1)
+            self.P[-2,-2] = self.init_lm_cov**2
+            self.P[-1,-1] = self.init_lm_cov**2
+
+        #adding known fruits
+        for (i,pos) in enumerate(fruits_true_pos):
+            self.taglist.append(fruit_list[i]) #adding tag
+            self.marker_gt[0][i + 10] = pos[0]
+            self.marker_gt[1][i + 10] = pos[1]
+
+            self.P = np.concatenate((self.P, np.zeros((2, self.P.shape[1]))), axis=0)
+            self.P = np.concatenate((self.P, np.zeros((self.P.shape[0], 2))), axis=1)
+            self.P[-2,-2] = self.init_lm_cov**2
+            self.P[-1,-1] = self.init_lm_cov**2
+        return self.marker_gt, self.taglist, self.P
+
+    def read_true_map(self,fname):
+        """Read the ground truth map and output the pose of the ArUco markers and 3 types of target fruit to search
+
+        @param fname: filename of the map
+        @return:
+            1) list of target fruits, e.g. ['apple', 'pear', 'lemon']
+            2) locations of the target fruits, [[x1, y1], ..... [xn, yn]]
+            3) locations of ArUco markers in order, i.e. pos[9, :] = position of the aruco10_0 marker
+        """
+        with open(fname, 'r') as fd:
+            gt_dict = json.load(fd)
+            fruit_list = []
+            fruit_true_pos = []
+            aruco_true_pos = np.empty([10, 2])
+
+            # remove unique id of targets of the same type
+            for key in gt_dict:
+                x = np.round(gt_dict[key]['x'], 1)
+                y = np.round(gt_dict[key]['y'], 1)
+
+                if key.startswith('aruco'):
+                    if key.startswith('aruco10'):
+                        aruco_true_pos[9][0] = x
+                        aruco_true_pos[9][1] = y
+                    else:
+                        marker_id = int(key[5])
+                        aruco_true_pos[marker_id-1][0] = x
+                        aruco_true_pos[marker_id-1][1] = y
+                else:
+                    fruit_list.append(key[:-2])
+                    if len(fruit_true_pos) == 0:
+                        fruit_true_pos = np.array([[x, y]])
+                    else:
+                        fruit_true_pos = np.append(fruit_true_pos, [[x, y]], axis=0)
+
+            return fruit_list, fruit_true_pos, aruco_true_pos
     # paint the GUI
     def draw(self, canvas):
         canvas.blit(self.bg, (0, 0))
         text_colour = (220, 220, 220)
         v_pad = 40
         h_pad = 20
+        red = pygame.Color(255,0,0)
+        blue = pygame.Color(0,0,255)
+        green = pygame.Color(102,204,0)
+        yellow = pygame.Color(255,255,0)
+        black = pygame.Color(0,0,0)
+        orange = pygame.Color(255,165,0)
+        pink = pygame.Color(255,0,127)
 
         # paint SLAM outputs
         ekf_view = self.ekf.draw_slam_state(res=(320, 480+v_pad),
@@ -195,18 +315,62 @@ class Operate:
                                 position=(h_pad, v_pad)
                                 )
 
-        # for target detector (M3)
-        detector_view = cv2.resize(self.network_vis,
-                                   (320, 240), cv2.INTER_NEAREST)
-        self.draw_pygame_window(canvas, detector_view,
+        # # for target detector (M3)
+        # detector_view = cv2.resize(self.network_vis,
+        #                            (320, 240), cv2.INTER_NEAREST)
+        # self.draw_pygame_window(canvas, detector_view,
+        #                         position=(3*h_pad + 2*320, v_pad)
+        #                         )
+
+        # for grid (M4)
+        grid = cv2.resize(self.grid,
+                                   (240, 240), cv2.INTER_NEAREST)
+        self.draw_pygame_window(canvas, grid,
                                 position=(h_pad, 240+2*v_pad)
                                 )
+        #Draw fruits and markers
+        for i, fruit in enumerate(self.fruit_list):
+            if fruit == 'apple':
+                colour = red
+            elif fruit == 'lemon':
+                colour = yellow
+            elif fruit == 'orange':
+                colour = orange
+            elif fruit == 'strawberry':
+                colour = pink
+            elif fruit == 'pear':
+                colour = green
+
+            x = int(self.fruit_true_pos[i][0]*80 + 120)
+            y = int(120 - self.fruit_true_pos[i][1]*80)
+            pygame.draw.circle(canvas, colour, (h_pad + x,240 + 2*v_pad + y),4)
+
+        for marker in self.aruco_true_pos:
+            x = int(marker[0]*80 + 120)
+            y = int(120 - marker[1]*80)
+            pygame.draw.rect(canvas, black, (h_pad + x - 5,240 + 2*v_pad + y - 5,10,10))
+
+        #Drawing robot
+        x = int(self.robot_pose[0]*80 + 120)
+        y = int(120 - self.robot_pose[1]*80)
+        x2 = int(x + 20*np.cos(self.robot_pose[2]))
+        y2 = int(y - 20*np.sin(self.robot_pose[2]))
+        pygame.draw.rect(canvas, red, (h_pad + x - 5,240 + 2*v_pad + y - 5,10,10))
+        pygame.draw.line(canvas, black, (h_pad + x,240 + 2*v_pad + y),(h_pad + x2,240 + 2*v_pad + y2))
+
+        #Draw waypoint
+        x = int(self.wp[0]*80 + 120)
+        y = int(120 - self.wp[1]*80)
+        pygame.draw.line(canvas, red,(h_pad + x-5,240 + 2*v_pad + y-5), (h_pad + x + 5,240 + 2*v_pad + y + 5))
+        pygame.draw.line(canvas, red,(h_pad + x + 5,240 + 2*v_pad + y-5), (h_pad + x - 5,240 + 2*v_pad + y + 5))
+        # pygame.draw.circle(canvas, red, (h_pad + x,240 + 2*v_pad + y),4)
 
         # canvas.blit(self.gui_mask, (0, 0))
         self.put_caption(canvas, caption='SLAM', position=(2*h_pad+320, v_pad))
-        self.put_caption(canvas, caption='Detector',
+        self.put_caption(canvas, caption='Waypoint clicker',
                          position=(h_pad, 240+2*v_pad))
         self.put_caption(canvas, caption='PiBot Cam', position=(h_pad, v_pad))
+        self.put_caption(canvas, caption='Detector', position=(3*h_pad + 2*320,v_pad))
 
         notifiation = TEXT_FONT.render(self.notification,
                                           False, text_colour)
@@ -272,22 +436,25 @@ class Operate:
             # run SLAM
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 n_observed_markers = len(self.ekf.taglist)
-                if n_observed_markers == 0:
-                    if not self.ekf_on:
-                        self.notification = 'SLAM is running'
-                        self.ekf_on = True
-                    else:
-                        self.notification = '> 2 landmarks is required for pausing'
-                elif n_observed_markers < 3:
-                    self.notification = '> 2 landmarks is required for pausing'
-                else:
-                    if not self.ekf_on:
-                        self.request_recover_robot = True
-                    self.ekf_on = not self.ekf_on
-                    if self.ekf_on:
-                        self.notification = 'SLAM is running'
-                    else:
-                        self.notification = 'SLAM is paused'
+                if not self.ekf_on:
+                    self.notification = 'SLAM is running'
+                    self.ekf_on = True
+                # if n_observed_markers == 0:
+                #     if not self.ekf_on:
+                #         self.notification = 'SLAM is running'
+                #         self.ekf_on = True
+                #     else:
+                #         self.notification = '> 2 landmarks is required for pausing'
+                # elif n_observed_markers < 3:
+                #     self.notification = '> 2 landmarks is required for pausing'
+                # else:
+                #     if not self.ekf_on:
+                #         self.request_recover_robot = True
+                #     self.ekf_on = not self.ekf_on
+                #     if self.ekf_on:
+                #         self.notification = 'SLAM is running'
+                #     else:
+                #         self.notification = 'SLAM is paused'
             # run object detector
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                 self.command['inference'] = True
@@ -295,8 +462,14 @@ class Operate:
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_n:
                 self.command['save_inference'] = True
             # run auto fruit search
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
-                self.command['search'] = True
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                pos = pygame.mouse.get_pos()
+                if pos[0] > 20 and pos[0] < 260 and pos[1] > 320 and pos[1] < 560:
+                    wp_x = ((pos[0] - 20) - 120) / 80
+                    wp_y = (120 - (pos[1] - (240 + 2*40)))/80
+                    self.wp = [wp_x,wp_y]
+                    self.wp_clicked = True
+                    print(f'Clicked waypoint, moving to {self.wp}')
             # quit
             elif event.type == pygame.QUIT:
                 self.quit = True
@@ -306,16 +479,88 @@ class Operate:
             pygame.quit()
             sys.exit()
 
-    # wheel control
-    def search_control(self, command, set_time):
-        self.control_clock = time.time()
-        lv, rv = self.pibot.set_velocity(command, tick=30, time=set_time) #forward for 2 seconds
-        if not self.data is None:
-            self.data.write_keyboard(lv, rv)
-        dt = time.time() - self.control_clock
-        print(f'Time passed: {dt}')
-        drive_meas = measure.Drive(lv, rv, dt)
-        return drive_meas
+
+    def turn_robot(self):
+        waypoint_x = self.wp[0]
+        waypoint_y = self.wp[1]
+        robot_x = self.robot_pose[0]
+        robot_y = self.robot_pose[1]
+        robot_theta = self.robot_pose[2]
+        waypoint_angle = np.arctan2((waypoint_y-robot_y),(waypoint_x-robot_x))
+        theta1 = robot_theta - waypoint_angle
+        if waypoint_angle < 0:
+            theta2 = robot_theta - waypoint_angle - 2*np.pi
+        else:
+            theta2 = robot_theta - waypoint_angle + 2*np.pi
+
+        if abs(theta1) > abs(theta2):
+            self.theta_error = theta2
+        else:
+            self.theta_error = theta1
+
+        if self.forward == False:
+            if self.theta_error > 0:
+                self.command['motion'] = [0,-1]
+                self.notification = 'Robot is turning right'
+
+            if self.theta_error < 0:
+                self.command['motion'] = [0,1]
+                self.notification = 'Robot is turning left'
+
+    def drive_robot(self):
+        waypoint_x = self.wp[0]
+        waypoint_y = self.wp[1]
+        robot_x = self.robot_pose[0]
+        robot_y = self.robot_pose[1]
+
+        self.distance = np.sqrt((waypoint_x-robot_x)**2 + (waypoint_y-robot_y)**2) #calculates distance between robot and waypoint
+
+        self.turn_robot() # turn robot
+
+        # stop turning if less than threshold
+        if not self.forward:
+            if abs(self.theta_error)  < 0.05:
+                self.command['motion'] = [0,0]
+                self.notification = 'Robot stopped turning'
+                self.forward = True #go forward now
+                return
+
+        #Driving forward
+        if self.forward:
+            #Checking if distance is increasing, stop driving
+            if self.distance > self.min_dist + 0.1:
+                self.command['motion'] = [0,0]
+                self.notification = 'Robot stopped moving'
+                self.forward = False
+                self.min_dist = 50
+                self.wp_clicked = False
+                return
+
+            # Distance is decreasing
+            else:
+                #Drive until goal arrived
+                distance_threshold = 0.05 #0.05
+                if self.distance < distance_threshold:
+                    self.command['motion'] = [0,0]
+                    self.notification = 'Robot arrived'
+                    self.forward = False
+                    self.min_dist = 50
+                    self.wp_clicked = False
+                    return
+
+                else:
+                    #ReAdjust angle if theta_error increased
+                    if abs(self.theta_error) > 0.2:
+                        self.command['motion'] = [0,0]
+                        self.notification = 'Readjusting angle'
+                        self.forward = False
+                        self.min_dist = 50
+                        return
+
+                    self.min_dist = self.distance
+                    self.command['motion'] = [1,0]
+                    self.notification = 'Robot moving forward'
+
 
 if __name__ == "__main__":
     import argparse
@@ -326,9 +571,9 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
+    parser.add_argument("--true_map", default="M4_true_map.txt")
     # parser.add_argument("--ckpt", default='network/scripts/model/model.best.pth')
     parser.add_argument("--ckpt", default='yolo-sim.pt')
-    parser.add_argument("--search")
     args, _ = parser.parse_known_args()
 
     pygame.font.init()
@@ -336,16 +581,17 @@ if __name__ == "__main__":
     TEXT_FONT = pygame.font.Font('pics/8-BitMadness.ttf', 40)
 
     width, height = 700, 660
+    # width, height = 700 + 400, 660
     canvas = pygame.display.set_mode((width, height))
     pygame.display.set_caption('ECE4078 2021 Lab')
-    pygame.display.set_icon(pygame.image.load('pics/8bit/pibot5.png'))
+    pygame.display.set_icon(pygame.image.load('pics/8bit/pibot5.png').convert())
     canvas.fill((0, 0, 0))
-    splash = pygame.image.load('pics/loading.png')
-    pibot_animate = [pygame.image.load('pics/8bit/pibot1.png'),
-                     pygame.image.load('pics/8bit/pibot2.png'),
-                     pygame.image.load('pics/8bit/pibot3.png'),
-                    pygame.image.load('pics/8bit/pibot4.png'),
-                     pygame.image.load('pics/8bit/pibot5.png')]
+    splash = pygame.image.load('pics/loading.png').convert()
+    pibot_animate = [pygame.image.load('pics/8bit/pibot1.png').convert(),
+                     pygame.image.load('pics/8bit/pibot2.png').convert(),
+                     pygame.image.load('pics/8bit/pibot3.png').convert(),
+                    pygame.image.load('pics/8bit/pibot4.png').convert(),
+                     pygame.image.load('pics/8bit/pibot5.png').convert()]
     pygame.display.update()
 
     start = False
@@ -365,65 +611,23 @@ if __name__ == "__main__":
     operate = Operate(args)
 
 
+    operate.notification = 'SLAM is running'
+    operate.ekf_on = True
     while start:
-        if operate.command['search']:
-            from auto_fruit_search import *
-            robot_pose = [0,0,0]
-            path = [[0.2,-0.2], [.5,.5]]
-            for waypoint in path:
-                commands = drive_to_point(waypoint,robot_pose)
-                for command, set_time in commands:
-                    drive_meas = operate.search_control(command,set_time)
-                    operate.take_pic()
-                    operate.command['search'] = False
-                    operate.update_slam(drive_meas)
-                    robot_pose = [operate.ekf.robot.state[0][0],operate.ekf.robot.state[1][0],operate.ekf.robot.state[2][0]]
-                    print(f'New State {operate.ekf.robot.state}')
-                    operate.record_data()
-                    operate.save_image()
-                    operate.detect_target()
-                    # visualise
-                    operate.draw(canvas)
-                    pygame.display.update()
-        else:
-            import matplotlib
-            import matplotlib.pyplot as plt
-            from auto_fruit_search2 import drive_to_point
-            matplotlib.use("TkAgg")
-            from machinevisiontoolbox import Image, CentralCamera
-            # Display image
-            image = Image('grid.png', grey=True)
-            fig = matplotlib.pyplot.figure()
-            plt.imshow(image.image, cmap='gray')
-            robot_pose = [0.0,0.0,0.0]
-            waypoint = [0, 0]
-            # pick points
-            def onclick(event):
-                global robot_pose
-                if event.button == 1:
-                    # left mouse click, add point and increment by 1
-                    x = (event.xdata - 150)/100
-                    y = -(event.ydata - 150)/100
-                    print(x, y)
-                    # waypoint = [x,y]
-                    # robot_pose = drive_to_point(waypoint,robot_pose, ppi)
-                    # print("Finished driving to waypoint: {}; New robot pose: {}".format(waypoint,robot_pose))
-                    # ppi.set_velocity([0, 0])
-                    plt.close()
-            print("Click point")
-            fig.canvas.set_window_title('Control robot')
-            ka = fig.canvas.mpl_connect('button_press_event', onclick)
-            plt.show()
-            operate.update_keyboard()
-            operate.take_pic()
-            drive_meas = operate.control()
-            operate.update_slam(drive_meas)
-            operate.record_data()
-            operate.save_image()
-            operate.detect_target()
-            # visualise
-            operate.draw(canvas)
-            pygame.display.update()
+        operate.update_keyboard()
+        operate.take_pic()
+        if operate.wp_clicked:
+            operate.drive_robot()
+        drive_meas = operate.control()
+
+        operate.update_slam(drive_meas)
+        operate.robot_pose = operate.ekf.robot.state
+        operate.record_data()
+        operate.save_image()
+        operate.detect_target()
+        # visualise
+        operate.draw(canvas)
+        pygame.display.update()
 
 
 

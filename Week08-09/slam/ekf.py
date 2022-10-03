@@ -27,9 +27,15 @@ class EKF:
         for i in range(1, 11):
             f_ = f'./pics/8bit/lm_{i}.png'
             self.lm_pics.append(pygame.image.load(f_))
+
+        for fruit in ['apple','lemon','orange','pear','strawberry']: #0, 1, 2, 3, 4
+            f_ = f'./pics/8bit/lm_{fruit}.png'
+            self.lm_pics.append(pygame.image.load(f_))
+
         f_ = f'./pics/8bit/lm_unknown.png'
         self.lm_pics.append(pygame.image.load(f_))
         self.pibot_pic = pygame.image.load(f'./pics/8bit/pibot_top.png')
+        self.pibot_pic = pygame.transform.flip(self.pibot_pic,True, False) #Flip image
 
 
     def reset(self):
@@ -57,6 +63,13 @@ class EKF:
         if self.number_landmarks() > 0:
             utils = MappingUtils(self.markers, self.P[3:,3:], self.taglist)
             utils.save(fname)
+
+    def load_map(self, marker_list, taglist, P):
+        utils = MappingUtils(marker_list, P[3:,3:],taglist)
+        # utils.load(fname)
+        self.taglist = utils.taglist
+        self.markers = utils.markers
+        self.P = P
 
     def recover_from_pause(self, measurements):
         if not measurements:
@@ -169,7 +182,8 @@ class EKF:
             lm_bff = lm.position
             lm_inertial = robot_xy + R_theta @ lm_bff
 
-            self.taglist.append(int(lm.tag))
+            # self.taglist.append(int(lm.tag))
+            self.taglist.append(lm.tag)
             self.markers = np.concatenate((self.markers, lm_inertial), axis=1)
 
             # Create a simple, large covariance to be fixed by the update step
@@ -222,8 +236,10 @@ class EKF:
     def to_im_coor(xy, res, m2pixel):
         w, h = res
         x, y = xy
-        x_im = int(-x*m2pixel+w/2.0)
-        y_im = int(y*m2pixel+h/2.0)
+        # x_im = int(-x*m2pixel+w/2.0)
+        # y_im = int(y*m2pixel+h/2.0)
+        x_im = int(x*m2pixel+w/2.0)
+        y_im = int(-y*m2pixel+h/2.0)
         return (x_im, y_im)
 
     def draw_slam_state(self, res = (320, 500), not_pause=True):
@@ -264,16 +280,31 @@ class EKF:
         surface = pygame.transform.flip(surface, True, False)
         surface.blit(self.rot_center(self.pibot_pic, robot_theta*57.3),
                     (start_point_uv[0]-15, start_point_uv[1]-15))
+
         if self.number_landmarks() > 0:
             for i in range(len(self.markers[0,:])):
                 xy = (lms_xy[0, i], lms_xy[1, i])
                 coor_ = self.to_im_coor(xy, res, m2pixel)
-                try:
-                    surface.blit(self.lm_pics[self.taglist[i]-1],
+                if self.taglist[i] in ['apple','lemon','orange','pear','strawberry']:
+                    if self.taglist[i] == 'apple':
+                        idx = -6
+                    elif self.taglist[i] == 'lemon':
+                        idx = -5
+                    elif self.taglist[i] == 'orange':
+                        idx = -4
+                    elif self.taglist[i] == 'pear':
+                        idx = -3
+                    elif self.taglist[i] == 'strawberry':
+                        idx = -2
+                    surface.blit(self.lm_pics[idx],
                     (coor_[0]-5, coor_[1]-5))
-                except IndexError:
-                    surface.blit(self.lm_pics[-1],
-                    (coor_[0]-5, coor_[1]-5))
+                else:
+                    try:
+                        surface.blit(self.lm_pics[self.taglist[i]-1],
+                        (coor_[0]-5, coor_[1]-5))
+                    except IndexError:
+                        surface.blit(self.lm_pics[-1],
+                        (coor_[0]-5, coor_[1]-5))
         return surface
 
     @staticmethod
