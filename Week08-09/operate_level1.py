@@ -99,6 +99,10 @@ class Operate:
         #control
         self.tick = 30
         self.turning_tick = 5
+
+        #Path planning
+        self.radius = 0.25
+
         #Add known markers and fruits from map to SLAM
         self.fruit_list, self.fruit_true_pos, self.aruco_true_pos = self.read_true_map(args.true_map)
         self.marker_gt = np.zeros((2,len(self.aruco_true_pos) + len(self.fruit_true_pos)))
@@ -504,7 +508,12 @@ class Operate:
         else:
             self.theta_error = theta1
 
+
         if self.forward == False:
+            #Update turning tick speed depending on theta_error to waypoint
+            self.turning_tick = int(abs(5 * self.theta_error) + 3)
+            print(f"Turning tick {self.turning_tick} with {self.theta_error}")
+
             if self.theta_error > 0:
                 self.command['motion'] = [0,-1]
                 self.notification = 'Robot is turning right'
@@ -533,6 +542,10 @@ class Operate:
 
         #Driving forward
         if self.forward:
+            #Update tick speed depending on distance to waypoint
+            self.tick = int(10 * self.distance  + 30)
+            print(f"Driving tick {self.tick} with {self.distance}")
+
             #Checking if distance is increasing, stop driving
             if self.distance > self.min_dist + 0.1:
                 self.command['motion'] = [0,0]
@@ -556,7 +569,7 @@ class Operate:
 
                 else:
                     #ReAdjust angle if theta_error increased
-                    if abs(self.theta_error) > 20/57.3 and self.distance > 0.15: #0.2
+                    if abs(self.theta_error) > 15/57.3 and self.distance > 0.15: #0.2
                         self.command['motion'] = [0,0]
                         self.notification = 'Readjusting angle'
                         self.forward = False
