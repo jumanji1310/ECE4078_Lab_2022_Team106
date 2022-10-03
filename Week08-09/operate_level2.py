@@ -368,7 +368,6 @@ class Operate:
         green = pygame.Color(102,204,0)
         yellow = pygame.Color(255,255,0)
         black = pygame.Color(0,0,0)
-        purple = pygame.Color(187,113,230)
         orange = pygame.Color(255,165,0)
         pink = pygame.Color(255,0,127)
         grey = pygame.Color(220,220,220)
@@ -641,7 +640,7 @@ class Operate:
 
                 else:
                     #ReAdjust angle if theta_error increased
-                    if abs(self.theta_error) > 20/57.3 and self.distance > 0.15:
+                    if abs(self.theta_error) > 20/57.3 and self.distance > 0.15: #0.2
                         self.command['motion'] = [0,0]
                         self.notification = 'Readjusting angle'
                         self.forward = False

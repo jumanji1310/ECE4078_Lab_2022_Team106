@@ -96,7 +96,9 @@ class Operate:
         self.P = np.zeros((3,3))
         self.marker_gt = np.zeros((2,10))
         self.init_lm_cov = 1e-4
-
+        #control
+        self.tick = 30
+        self.turning_tick = 5
         #Add known markers and fruits from map to SLAM
         self.fruit_list, self.fruit_true_pos, self.aruco_true_pos = self.read_true_map(args.true_map)
         self.marker_gt = np.zeros((2,len(self.aruco_true_pos) + len(self.fruit_true_pos)))
@@ -113,7 +115,7 @@ class Operate:
             lv, rv = self.pibot.set_velocity()
         else:
             lv, rv = self.pibot.set_velocity(
-                self.command['motion'])
+                self.command['motion'], self.tick, self.turning_tick)
         if not self.data is None:
             self.data.write_keyboard(lv, rv)
         dt = time.time() - self.control_clock
@@ -305,6 +307,7 @@ class Operate:
         black = pygame.Color(0,0,0)
         orange = pygame.Color(255,165,0)
         pink = pygame.Color(255,0,127)
+        grey = pygame.Color(220,220,220)
 
         # paint SLAM outputs
         ekf_view = self.ekf.draw_slam_state(res=(320, 480+v_pad),
@@ -343,11 +346,14 @@ class Operate:
 
             x = int(self.fruit_true_pos[i][0]*80 + 120)
             y = int(120 - self.fruit_true_pos[i][1]*80)
+            if fruit not in self.search_list:
+                pygame.draw.circle(canvas, grey, (h_pad + x,240 + 2*v_pad + y),self.radius*80)
             pygame.draw.circle(canvas, colour, (h_pad + x,240 + 2*v_pad + y),4)
 
         for marker in self.aruco_true_pos:
             x = int(marker[0]*80 + 120)
             y = int(120 - marker[1]*80)
+            pygame.draw.circle(canvas, grey, (h_pad + x,240 + 2*v_pad + y),self.radius*80)
             pygame.draw.rect(canvas, black, (h_pad + x - 5,240 + 2*v_pad + y - 5,10,10))
 
         #Drawing robot
@@ -550,7 +556,7 @@ class Operate:
 
                 else:
                     #ReAdjust angle if theta_error increased
-                    if abs(self.theta_error) > 0.2:
+                    if abs(self.theta_error) > 20/57.3 and self.distance > 0.15: #0.2
                         self.command['motion'] = [0,0]
                         self.notification = 'Readjusting angle'
                         self.forward = False
@@ -609,7 +615,6 @@ if __name__ == "__main__":
             counter += 2
 
     operate = Operate(args)
-
 
     operate.notification = 'SLAM is running'
     operate.ekf_on = True
