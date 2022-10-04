@@ -103,6 +103,12 @@ class Operate:
 
         #Path planning
         self.radius = 0.25
+        self.new_fruits = {}
+        self.wp_stack = []
+        self.obstacle = True
+
+        #Logs and debug
+        self.logs = False
 
         #Add known markers and fruits from map to SLAM
         self.fruit_list, self.fruit_true_pos, self.aruco_true_pos = self.read_true_map(args.true_map)
@@ -138,7 +144,7 @@ class Operate:
         for fruit in dictionary.keys():
             x = dictionary[fruit]['x']
             y = dictionary[fruit]['y']
-            print(f'{fruit} at {x}, {y}')
+            if self.logs: print(f'{fruit} at {x}, {y}')
             lm_measurement = measure.Marker(np.array([x,y]),fruit)
             measurements.append(lm_measurement)
         return measurements
@@ -157,13 +163,44 @@ class Operate:
 
         return search_list
 
+    def detect_collision(self, dictionary):
+        for fruit in dictionary.keys():
+            if fruit not in self.search_list: #not fruit to be searched
+                x = dictionary[fruit]['x']
+                y = dictionary[fruit]['y']
+
+                #add fruit to unknown fruit list
+                self.new_fruits[fruit] = [x,y]
+                robot_x = self.robot_pose[0]
+                robot_y = self.robot_pose[1]
+                robot_theta = self.robot_pose[2]
+                object_angle = np.arctan2(y-robot_y,x-robot_x)
+                angle_error = object_angle - robot_theta
+                dx = x - robot_x
+                dy = y - robot_y
+                distance_error = np.sqrt((dx)**2 + (dy)**2)
+                if angle_error < 10/57.3 and distance_error < 0.4:
+                    if self.obstacle:
+                        print("COLLISION")
+                        #calculate unit vectors
+                        dx /= distance_error
+                        dy /= distance_error
+                        offset = 0.25
+                        new_x = x + offset * dx
+                        new_y = y - offset * dy
+                        self.wp_stack.append(self.wp)
+                        self.wp = [new_x, new_y]
+                        print(self.wp)
+                        self.obstacle = False
+
     # SLAM with ARUCO markers
     def update_slam(self, drive_meas):
         self.detector_output, self.aruco_img, self.bounding_boxes, pred_count = self.detector.detect_single_image(self.img)
         lms, self.aruco_img = self.aruco_det.detect_marker_positions(self.img)
         fruit_dict = estimate_fruit_pose(self.bounding_boxes, self.robot_pose)
-        lms_fruit = self.detect_fruit_pos(fruit_dict)
-        lms = lms + lms_fruit
+        self.detect_collision(fruit_dict)
+        # lms_fruit = self.detect_fruit_pos(fruit_dict)
+        # lms = lms + lms_fruit
         if self.request_recover_robot:
             is_success = self.ekf.recover_from_pause(lms)
             if is_success:
@@ -376,6 +413,22 @@ class Operate:
         pygame.draw.line(canvas, red,(h_pad + x + 5,240 + 2*v_pad + y-5), (h_pad + x - 5,240 + 2*v_pad + y + 5))
         # pygame.draw.circle(canvas, red, (h_pad + x,240 + 2*v_pad + y),4)
 
+        #Draw new unknown fruits
+        for fruit in self.new_fruits.keys():
+            if fruit == 'apple':
+                colour = red
+            elif fruit == 'lemon':
+                colour = yellow
+            elif fruit == 'orange':
+                colour = orange
+            elif fruit == 'strawberry':
+                colour = pink
+            elif fruit == 'pear':
+                colour = green
+            x = int(self.new_fruits[fruit][0]*80 + 120)
+            y = int(120 - self.new_fruits[fruit][1]*80)
+            pygame.draw.circle(canvas, colour, (h_pad + x,240 + 2*v_pad + y),4)
+
         # canvas.blit(self.gui_mask, (0, 0))
         self.put_caption(canvas, caption='SLAM', position=(2*h_pad+320, v_pad))
         self.put_caption(canvas, caption='Waypoint clicker',
@@ -513,7 +566,7 @@ class Operate:
         if self.forward == False:
             #Update turning tick speed depending on theta_error to waypoint
             self.turning_tick = int(abs(5 * self.theta_error) + 3)
-            print(f"Turning tick {self.turning_tick} with {self.theta_error}")
+            if self.logs: print(f"Turning tick {self.turning_tick} with {self.theta_error}")
 
             if self.theta_error > 0:
                 self.command['motion'] = [0,-1]
@@ -544,8 +597,8 @@ class Operate:
         #Driving forward
         if self.forward:
             #Update tick speed depending on distance to waypoint
-            self.tick = int(10 * self.distance  + 30)
-            print(f"Driving tick {self.tick} with {self.distance}")
+            self.tick = int(10 * self.distance  + 10)
+            if self.logs: print(f"Driving tick {self.tick} with {self.distance}")
 
             #Checking if distance is increasing, stop driving
             if self.distance > self.min_dist + 0.1:
@@ -566,6 +619,13 @@ class Operate:
                     self.forward = False
                     self.min_dist = 50
                     self.wp_clicked = False
+                    # if len(self.wp_stack) != 0:
+                    #     removed = self.wp_stack.pop(0)
+                    #     self.wp = removed
+                    #     print(f"Removed {removed}")
+                    # else:
+                    #     self.wp_clicked = False
+
                     return
 
                 else:
@@ -635,7 +695,7 @@ if __name__ == "__main__":
     while start:
         operate.update_keyboard()
         operate.take_pic()
-        if operate.wp_clicked:
+        if operate.wp_clicked:# or len(operate.wp_stack) != 0:
             operate.drive_robot()
         drive_meas = operate.control()
 

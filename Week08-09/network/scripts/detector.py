@@ -28,7 +28,7 @@ class Detector:
         with torch.no_grad():
             pred = self.model(img)
         dt = time.time() - tick
-        print(f'Inference Time {dt:.2f}s, approx {1/dt:.2f}fps', end="\r")
+        # print(f'Inference Time {dt:.2f}s, approx {1/dt:.2f}fps', end="\r")
 
         #Calculating image info
         pred_count = len(pred.pandas().xyxy[0]) #calculating how many predictions on page
