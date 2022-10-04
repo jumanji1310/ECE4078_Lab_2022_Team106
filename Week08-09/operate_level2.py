@@ -413,6 +413,8 @@ class Operate:
             y = int(120 - self.fruit_true_pos[i][1]*80)
             if fruit not in self.search_list:
                 pygame.draw.circle(canvas, grey, (h_pad + x,240 + 2*v_pad + y),self.radius*80)
+            else:
+                pygame.draw.circle(canvas, black, (h_pad + x,240 + 2*v_pad + y),0.5*80, 2)
             pygame.draw.circle(canvas, colour, (h_pad + x,240 + 2*v_pad + y),4)
 
         for marker in self.aruco_true_pos:
