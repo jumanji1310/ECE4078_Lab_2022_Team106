@@ -68,8 +68,6 @@ if __name__ == '__main__':
     apple_est, lemon_est, pear_est, orange_est, strawberry_est = parse_map(args.est)
 
     # compute average distance between a target and its closest estimation
-    print(apple_gt, apple_est)
-    print(strawberry_gt, strawberry_est)
     apple_dist = compute_dist(apple_gt,apple_est)
     lemon_dist = compute_dist(lemon_gt,lemon_est)
     pear_dist = compute_dist(pear_gt, pear_est)
