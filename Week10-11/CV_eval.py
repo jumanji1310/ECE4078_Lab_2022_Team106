@@ -6,10 +6,11 @@ import json
 # read in the object poses
 def parse_map(fname: str) -> dict:
     with open(fname,'r') as f:
-        gt_dict = ast.literal_eval(f.readline())        
+        # gt_dict = ast.literal_eval(f.readline())
+        gt_dict = json.load(f)
         apple_gt, lemon_gt, pear_gt, orange_gt, strawberry_gt = [], [], [], [], []
 
-        # remove unique id of targets of the same type 
+        # remove unique id of targets of the same type
         for key in gt_dict:
             if key.startswith('apple'):
                 apple_gt.append(np.array(list(gt_dict[key].values()), dtype=float))
@@ -65,16 +66,18 @@ if __name__ == '__main__':
     # read in ground truth and estimations
     apple_gt, lemon_gt, pear_gt, orange_gt, strawberry_gt = parse_map(args.truth)
     apple_est, lemon_est, pear_est, orange_est, strawberry_est = parse_map(args.est)
-    
+
     # compute average distance between a target and its closest estimation
+    print(apple_gt, apple_est)
+    print(strawberry_gt, strawberry_est)
     apple_dist = compute_dist(apple_gt,apple_est)
     lemon_dist = compute_dist(lemon_gt,lemon_est)
     pear_dist = compute_dist(pear_gt, pear_est)
     orange_dist = compute_dist(orange_gt, orange_est)
     strawberry_dist = compute_dist(strawberry_gt, strawberry_est)
-    
+
     av_dist = (apple_dist+lemon_dist+pear_dist+orange_dist+strawberry_dist)/5
-    
+
     print("Average distances between the targets and the closest estimations:")
     print("apple = {}, lemon = {}, pear = {}, orange = {}, strawberry = {}".format(apple_dist,lemon_dist,pear_dist,orange_dist,strawberry_dist))
     print("estimation error: ", av_dist)
