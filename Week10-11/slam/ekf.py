@@ -182,8 +182,8 @@ class EKF:
             lm_bff = lm.position
             lm_inertial = robot_xy + R_theta @ lm_bff
 
-            # self.taglist.append(int(lm.tag))
-            self.taglist.append(lm.tag)
+            self.taglist.append(int(lm.tag))
+            # self.taglist.append(lm.tag)
             self.markers = np.concatenate((self.markers, lm_inertial), axis=1)
 
             # Create a simple, large covariance to be fixed by the update step
