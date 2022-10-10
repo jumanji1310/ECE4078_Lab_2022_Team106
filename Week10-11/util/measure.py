@@ -13,5 +13,13 @@ class Drive:
         self.left_speed = left_speed
         self.right_speed = right_speed
         self.dt = dt
-        self.left_cov = left_cov
-        self.right_cov = right_cov
+
+        if left_speed == 0 and right_speed == 0: #stopped:
+            cov = 0
+        elif left_speed == right_speed: # Lower covariance for driving straight
+            cov = 1
+        else: # higher covariance since turning is less consistent
+            cov = 2
+
+        self.left_cov = cov
+        self.right_cov = cov
