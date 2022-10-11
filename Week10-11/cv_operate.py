@@ -87,11 +87,11 @@ class Operate:
         self.marker_gt = np.zeros((2,10))
         self.init_lm_cov = 1e-6 #1e-4
 
-        # #Add known markers and fruits from map to SLAM
-        # self.fruit_list, self.fruit_true_pos, self.aruco_true_pos = self.read_true_map(args.est_map)
-        # self.marker_gt = np.zeros((2,len(self.aruco_true_pos) + len(self.fruit_true_pos)))
-        # self.marker_gt, self.taglist, self.P = self.parse_slam_map(self.fruit_list, self.fruit_true_pos, self.aruco_true_pos)
-        # self.ekf.load_map(self.marker_gt, self.taglist, self.P)
+        #Add known markers and fruits from map to SLAM
+        self.fruit_list, self.fruit_true_pos, self.aruco_true_pos = self.read_true_map(args.est_map)
+        self.marker_gt = np.zeros((2,len(self.aruco_true_pos) + len(self.fruit_true_pos)))
+        self.marker_gt, self.taglist, self.P = self.parse_slam_map(self.fruit_list, self.fruit_true_pos, self.aruco_true_pos)
+        self.ekf.load_map(self.marker_gt, self.taglist, self.P)
 
     # wheel control
     def control(self):
@@ -386,7 +386,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
     parser.add_argument("--ckpt", default='network/scripts/model/model.best.pth')
-    parser.add_argument("--est_map", default="M4_true_map_7fruits.txt")
+    parser.add_argument("--est_map", default="lab_output/slam_map.txt")
     args, _ = parser.parse_known_args()
 
     pygame.font.init()

@@ -85,6 +85,7 @@ class Operate:
         self.bg = pygame.image.load('pics/gui_mask.jpg')
 
         #M4 Initialisations
+        self.log = False
         self.robot_pose = [0,0,0]
         self.forward = False
         self.point_idx = 1
@@ -514,7 +515,8 @@ class Operate:
         if self.forward == False:
             #Update turning tick speed depending on theta_error to waypoint
             self.turning_tick = int(abs(5 * self.theta_error) + 3)
-            print(f"Turning tick {self.turning_tick} with {self.theta_error}")
+            if self.log:
+                print(f"Turning tick {self.turning_tick} with {self.theta_error}")
 
             if self.theta_error > 0:
                 self.command['motion'] = [0,-1]
@@ -546,7 +548,8 @@ class Operate:
         if self.forward:
             #Update tick speed depending on distance to waypoint
             self.tick = int(10 * self.distance  + 30)
-            print(f"Driving tick {self.tick} with {self.distance}")
+            if self.log:
+                print(f"Driving tick {self.tick} with {self.distance}")
 
             #Checking if distance is increasing, stop driving
             if self.distance > self.min_dist + 0.1:
@@ -592,7 +595,7 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--true_map", default="M4_true_map.txt")
+    parser.add_argument("--true_map", default="combined_map.txt")
     # parser.add_argument("--ckpt", default='network/scripts/model/model.best.pth')
     parser.add_argument("--ckpt", default='yolo-sim.pt')
     args, _ = parser.parse_known_args()
