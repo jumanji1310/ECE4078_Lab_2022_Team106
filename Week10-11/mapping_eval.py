@@ -14,15 +14,15 @@ def parse_true_map(fname):
                 aruco_num = int(key.strip('aruco')[:-2])
                 aruco_dict[aruco_num] = np.reshape([gt_dict[key]['x'], gt_dict[key]['y']], (2, 1))
             elif key.startswith('apple'):
-                apples.append(np.array(list(gt_dict[key].values()), dtype=float))
+                apples.append(np.array([gt_dict[key]['x'], gt_dict[key]['y']], dtype=float))
             elif key.startswith('lemon'):
-                lemons.append(np.array(list(gt_dict[key].values()), dtype=float))
+                lemons.append(np.array([gt_dict[key]['x'], gt_dict[key]['y']], dtype=float))
             elif key.startswith('pear'):
-                pears.append(np.array(list(gt_dict[key].values()), dtype=float))
+                pears.append(np.array([gt_dict[key]['x'], gt_dict[key]['y']], dtype=float))
             elif key.startswith('orange'):
-                oranges.append(np.array(list(gt_dict[key].values()), dtype=float))
+                oranges.append(np.array([gt_dict[key]['x'], gt_dict[key]['y']], dtype=float))
             elif key.startswith('strawberry'):
-                strawberries.append(np.array(list(gt_dict[key].values()), dtype=float))
+                strawberries.append(np.array([gt_dict[key]['x'], gt_dict[key]['y']], dtype=float))
 
     fruits = {
         'apples': apples,
@@ -41,15 +41,15 @@ def parse_fruit_map(fname):
 
         for key in gt_dict:
             if key.startswith('apple'):
-                apples.append(np.array(list(gt_dict[key].values()), dtype=float))
+                apples.append(np.array([gt_dict[key]['x'], gt_dict[key]['y']], dtype=float))
             elif key.startswith('lemon'):
-                lemons.append(np.array(list(gt_dict[key].values()), dtype=float))
+                lemons.append(np.array([gt_dict[key]['x'], gt_dict[key]['y']], dtype=float))
             elif key.startswith('pear'):
-                pears.append(np.array(list(gt_dict[key].values()), dtype=float))
+                pears.append(np.array([gt_dict[key]['x'], gt_dict[key]['y']], dtype=float))
             elif key.startswith('orange'):
-                oranges.append(np.array(list(gt_dict[key].values()), dtype=float))
+                oranges.append(np.array([gt_dict[key]['x'], gt_dict[key]['y']], dtype=float))
             elif key.startswith('strawberry'):
-                strawberries.append(np.array(list(gt_dict[key].values()), dtype=float))
+                strawberries.append(np.array([gt_dict[key]['x'], gt_dict[key]['y']], dtype=float))
 
     fruits = {
         'apples': apples,
@@ -139,10 +139,13 @@ def compute_slam_rmse(points1, points2):
 
 def compute_fruit_est_error(gt_list, est_list):
     """Compute the fruit target pose estimation error based on Euclidean distance
+
     If there are more estimations than the number of targets (e.g. only 1 target apple, but detected 2),
         then take the average error of the 2 detections
+
     if there are fewer estimations than the number of targets (e.g. 2 target apples, but only detected 1),
         then return [MAX_ERROR, error with the closest target]
+
     @param gt_list: target ground truth list
     @param est_list: estimation list
     @return: error of all the fruits
@@ -205,9 +208,9 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser('Matching the estimated map and the true map')
-    parser.add_argument('--true-map', type=str, default='example_mapping_evaluation/true_map.txt')
-    parser.add_argument('--slam-est', type=str, default='example_mapping_evaluation/slam.txt')
-    parser.add_argument('--target-est', type=str, default='example_mapping_evaluation/targets.txt')
+    parser.add_argument('--true-map', type=str, default='true_map.txt')
+    parser.add_argument('--slam-est', type=str, default='lab_output/slam.txt')
+    parser.add_argument('--target-est', type=str, default='lab_output/targets.txt')
     parser.add_argument('--slam-only', action='store_true')
     parser.add_argument('--target-only', action='store_true')
     args, _ = parser.parse_known_args()
@@ -246,17 +249,26 @@ if __name__ == '__main__':
         theta, x = solve_umeyama2d(slam_est_vec, slam_gt_vec)
         slam_est_vec_aligned = apply_transform(theta, x, slam_est_vec)
 
-        slam_rmse = compute_slam_rmse(slam_est_vec_aligned, slam_gt_vec)
+        slam_rmse_raw = compute_slam_rmse(slam_est_vec, slam_gt_vec)
+        slam_rmse_aligned = compute_slam_rmse(slam_est_vec_aligned, slam_gt_vec)
 
-        print(f'The SLAM RMSE = {np.round(slam_rmse, 3)}')
+        print(f'The SLAM RMSE before alignment = {np.round(slam_rmse_raw, 3)}')
+        print(f'The SLAM RMSE after alignment = {np.round(slam_rmse_aligned, 3)}')
 
         print('----------------------------------------------')
         # evaluate fruit pose estimation errors
         fruits_est = parse_fruit_map(args.target_est)
 
         # align the fruit poses using the transform computed from SLAM
-        fruits_est_aligned = align_fruit_poses(-theta, x, fruits_est)
+        fruits_est_aligned = align_fruit_poses(theta, x, fruits_est)
 
-        fruit_est_errors = compute_fruit_est_error(fruits_gt, fruits_est_aligned)
-        print('Fruit pose estimation errors:')
-        print(json.dumps(fruit_est_errors, indent=4))
+        fruit_est_errors_raw = compute_fruit_est_error(fruits_gt, fruits_est)
+        fruit_est_errors_aligned = compute_fruit_est_error(fruits_gt, fruits_est_aligned)
+
+        print('Fruit pose estimation errors before alignment:')
+        print(json.dumps(fruit_est_errors_raw, indent=4))
+        print('Fruit pose estimation errors after alignment:')
+        print(json.dumps(fruit_est_errors_aligned, indent=4))
+
+
+

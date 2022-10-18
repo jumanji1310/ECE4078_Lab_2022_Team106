@@ -58,14 +58,19 @@ def estimate_pose(base_dir, camera_matrix, completed_img_dict):
     # You need to replace these values for the real world objects
     target_dimensions = []
     apple_dimensions = [0.075448, 0.074871, 0.071889]
+    apple_dimensions = [0, 0, 0.075] #7.5cm
     target_dimensions.append(apple_dimensions)
     lemon_dimensions = [0.060588, 0.059299, 0.053017]
+    lemon_dimensions = [0, 0, 0.06] #6cm
     target_dimensions.append(lemon_dimensions)
     orange_dimensions = [0.0721, 0.0771, 0.0739]
+    orange_dimensions = [0, 0, 0.08] #8cm
     target_dimensions.append(orange_dimensions)
     pear_dimensions = [0.0946, 0.0948, 0.135]
+    pear_dimensions = [0, 0, 0.11] #11cm
     target_dimensions.append(pear_dimensions)
     strawberry_dimensions = [0.052, 0.0346, 0.0376]
+    strawberry_dimensions = [0, 0, 0.045] #4.5cm
     target_dimensions.append(strawberry_dimensions)
 
     target_list = ['apple', 'lemon', 'pear', 'orange', 'strawberry']
@@ -99,7 +104,7 @@ def estimate_pose(base_dir, camera_matrix, completed_img_dict):
             x = A * np.cos(theta) #x of object w.r.t to Robot frame
 
             object_x = box[0][i] #x position of object in camera plane
-            x_from_centre = 320 - object_x# 640/2 = 320 to get the x distance from centreline
+            x_from_centre = 160 - object_x# 640/2 = 320 to get the x distance from centreline
             camera_theta = np.arctan(x_from_centre/a) #calculate angle from centreline
 
             total_theta = theta + camera_theta #angle of object w.r.t to Robot frame
@@ -247,7 +252,7 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()
 
     # camera_matrix = np.ones((3,3))/2
-    fileK = "{}intrinsic.txt".format('./calibration/param/sim/')
+    fileK = "{}intrinsic.txt".format('./calibration/param/physical/')
     camera_matrix = np.loadtxt(fileK, delimiter=',')
     base_dir = Path('./')
 

@@ -149,7 +149,7 @@ class Operate:
         @return: search order of the target fruits
         """
         search_list = []
-        with open('search_list.txt', 'r') as fd:
+        with open(args.search, 'r') as fd:
             fruits = fd.readlines()
 
             for fruit in fruits:
@@ -598,6 +598,7 @@ if __name__ == "__main__":
     parser.add_argument("--true_map", default="combined_map.txt")
     # parser.add_argument("--ckpt", default='network/scripts/model/model.best.pth')
     parser.add_argument("--ckpt", default='yolo-sim.pt')
+    parser.add_argument("--search", default="search_list.txt")
     args, _ = parser.parse_known_args()
 
     pygame.font.init()

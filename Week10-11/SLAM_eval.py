@@ -88,22 +88,12 @@ def compute_rmse(points1, points2):
 
     return np.sqrt(MSE)
 
-def generateMap(locations, tags):
-    map = {}
-    for tag in tags:
-        idx = tags.index(tag)
-        x = locations[0][idx]
-        y = locations[1][idx]
-        map[f'aruco{tag}_0'] = {"x":x,"y":y}
-    with open("lab_output/slam_map.txt",'w') as f:
-        json.dump(map,f)
-
 if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser("Matching the estimated map and the true map")
-    parser.add_argument("groundtruth", type=str, help="The ground truth file name.")
-    parser.add_argument("estimate", type=str, help="The estimate file name.")
+    parser.add_argument("groundtruth", type=str, help="The ground truth file name.",default="true_map.txt")
+    parser.add_argument("--estimate", type=str, help="The estimate file name.",default="lab_output/slam.txt")
     args = parser.parse_args()
 
     gt_aruco = parse_groundtruth(args.groundtruth)
@@ -132,6 +122,3 @@ if __name__ == '__main__':
     print("np.array("+np.array2string(gt_vec, precision=4, separator=',')+')')
     print("Aligned Pred Locations")
     print("np.array("+np.array2string(us_vec_aligned, precision=4, separator=',')+')')
-
-    generateMap(us_vec_aligned, taglist)
-

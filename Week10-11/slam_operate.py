@@ -197,15 +197,19 @@ class Operate:
             # drive forward
             if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
                 self.command['motion'] = [1, 0]
+                self.ekf.starting_position = False
             # drive backward
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
                 self.command['motion'] = [-1, 0]
+                self.ekf.starting_position = False
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
                 self.command['motion'] = [0, 1]
+                self.ekf.starting_position = False
             # drive right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
                 self.command['motion'] = [0, -1]
+                self.ekf.starting_position = False
             ####################################################
             # stop
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -216,6 +220,7 @@ class Operate:
             # save SLAM map
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
                 self.command['output'] = True
+                self.ekf.save_for_CV()
             # reset SLAM map
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
                 if self.double_reset_comfirm == 0:
@@ -252,6 +257,7 @@ class Operate:
         if self.quit:
             pygame.quit()
             sys.exit()
+
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ from mapping_utils import MappingUtils
 import cv2
 import math
 import pygame
+import json
 
 class EKF:
     # Implementation of an EKF for SLAM
@@ -37,6 +38,7 @@ class EKF:
         self.pibot_pic = pygame.image.load(f'./pics/8bit/pibot_top.png')
         self.pibot_pic = pygame.transform.flip(self.pibot_pic,True, False) #Flip image
 
+        self.starting_position = True
 
     def reset(self):
         self.robot.state = np.zeros((3, 1))
@@ -70,6 +72,20 @@ class EKF:
         self.taglist = utils.taglist
         self.markers = utils.markers
         self.P = P
+
+    def save_for_CV(self):
+        locations = self.markers
+        tags = self.taglist
+
+        map = {}
+        for tag in tags:
+            idx = tags.index(tag)
+            x = locations[0][idx]
+            y = locations[1][idx]
+            map[f'aruco{tag}_0'] = {"x":x,"y":y}
+        with open("lab_output/slam_map.txt",'w') as f:
+            json.dump(map,f)
+
 
     def recover_from_pause(self, measurements):
         if not measurements:
@@ -189,8 +205,12 @@ class EKF:
             # Create a simple, large covariance to be fixed by the update step
             self.P = np.concatenate((self.P, np.zeros((2, self.P.shape[1]))), axis=0)
             self.P = np.concatenate((self.P, np.zeros((self.P.shape[0], 2))), axis=1)
-            self.P[-2,-2] = self.init_lm_cov**2
-            self.P[-1,-1] = self.init_lm_cov**2
+            if self.starting_position:
+                self.P[-2,-2] = 1e-4**2
+                self.P[-1,-1] = 1e-4**2
+            else:
+                self.P[-2,-2] = self.init_lm_cov**2
+                self.P[-1,-1] = self.init_lm_cov**2
 
     ##########################################
     ##########################################
