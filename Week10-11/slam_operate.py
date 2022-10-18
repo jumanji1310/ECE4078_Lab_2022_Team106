@@ -68,6 +68,7 @@ class Operate:
         self.img = np.zeros([240,320,3], dtype=np.uint8)
         self.aruco_img = np.zeros([240,320,3], dtype=np.uint8)
         self.bg = pygame.image.load('pics/gui_mask.jpg')
+        self.update_flag = True
 
     # wheel control
     def control(self):
@@ -103,7 +104,8 @@ class Operate:
         elif self.ekf_on: # and not self.debug_flag:
             self.ekf.predict(drive_meas)
             self.ekf.add_landmarks(lms)
-            self.ekf.update(lms)
+            if self.update_flag:
+                self.ekf.update(lms)
 
     # save images taken by the camera
     def save_image(self):
@@ -298,7 +300,16 @@ if __name__ == "__main__":
 
     while start:
         operate.update_keyboard()
+        operate.old_img = operate.img
         operate.take_pic()
+
+        #only update slam if frame changed
+        if np.array_equal(operate.old_img,operate.img):
+            operate.update_flag = False
+            print("Don't update")
+        else:
+            operate.update_flag = True
+            print("Update")
         drive_meas = operate.control()
         operate.update_slam(drive_meas)
         operate.record_data()

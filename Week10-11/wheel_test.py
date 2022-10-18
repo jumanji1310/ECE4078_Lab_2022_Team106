@@ -3,8 +3,8 @@ import numpy as np
 import numpy as np
 import os
 import sys
-sys.path.insert(0, "../util")
-from util.pibot import PenguinPi
+sys.path.insert(0, "util")
+from pibot import PenguinPi
 
 class WheelTest:
     def __init__(self, args):
@@ -29,7 +29,7 @@ class WheelTest:
         actual = float(input('Please enter the actual distance drove (m)'))
         self.drive_actual.append(actual)
 
-    def testTurn(self, turning_ticks=5, theta=2*np.pi):
+    def testTurn(self, turning_ticks=10, theta=2*np.pi):
         self.turn_setpoint.append(theta)
         dt = (theta*self.baseline)/(2*self.scale*turning_ticks)
         print("turning for ", dt)
@@ -38,17 +38,12 @@ class WheelTest:
         self.turn_actual.append(actual)
 
     def summary(self):
-        self.drive_actual = np.array(self.drive_actual)
-        self.drive_setpoint = np.array(self.drive_setpoint)
-        self.turn_actual = np.array(self.turn_actual)
-        self.turn_setpoint = np.array(self.turn_setpoint)
-
-        rmse = np.sqrt(np.mean((self.drive_actual-self.drive_setpoint)**2))
+        rmse = np.sqrt(np.mean([(i - j) ** 2 for (i, j) in zip(self.drive_actual,self.drive_setpoint)]))
         print("Driving RMSE is ", rmse)
         print("mean = ", np.mean(self.drive_actual))
         print("variance = ", np.var(self.drive_actual, ddof=1))
 
-        turn_rmse = np.sqrt(np.mean((self.turn_actual-self.turn_setpoint)**2))
+        turn_rmse = np.sqrt(np.mean([(i - j) ** 2 for (i, j) in zip(self.turn_actual,self.turn_setpoint)]))
         print("Turning RMSE is ", turn_rmse)
         print("turning mean = ", np.mean(self.turn_actual))
         print("turning variance = ", np.var(self.turn_actual, ddof=1))

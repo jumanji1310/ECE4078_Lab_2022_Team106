@@ -23,3 +23,5 @@ class Drive:
 
         self.left_cov = cov
         self.right_cov = cov
+        # self.left_cov = left_cov
+        # self.right_cov = right_cov
