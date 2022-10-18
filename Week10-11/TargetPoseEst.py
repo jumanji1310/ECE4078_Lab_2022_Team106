@@ -56,17 +56,30 @@ def estimate_pose(base_dir, camera_matrix, completed_img_dict):
 
     # actual sizes of targets [For the simulation models]
     # You need to replace these values for the real world objects
-    target_dimensions = []
-    apple_dimensions = [0.075448, 0.074871, 0.071889]
-    target_dimensions.append(apple_dimensions)
-    lemon_dimensions = [0.060588, 0.059299, 0.053017]
-    target_dimensions.append(lemon_dimensions)
-    orange_dimensions = [0.0721, 0.0771, 0.0739]
-    target_dimensions.append(orange_dimensions)
-    pear_dimensions = [0.0946, 0.0948, 0.135]
-    target_dimensions.append(pear_dimensions)
-    strawberry_dimensions = [0.052, 0.0346, 0.0376]
-    target_dimensions.append(strawberry_dimensions)
+    if args.type == "sim":
+        target_dimensions = []
+        apple_dimensions = [0.075448, 0.074871, 0.071889]
+        target_dimensions.append(apple_dimensions)
+        lemon_dimensions = [0.060588, 0.059299, 0.053017]
+        target_dimensions.append(lemon_dimensions)
+        orange_dimensions = [0.0721, 0.0771, 0.0739]
+        target_dimensions.append(orange_dimensions)
+        pear_dimensions = [0.0946, 0.0948, 0.135]
+        target_dimensions.append(pear_dimensions)
+        strawberry_dimensions = [0.052, 0.0346, 0.0376]
+        target_dimensions.append(strawberry_dimensions)
+    elif args.type == "phy":
+        target_dimensions = []
+        apple_dimensions = [0, 0, 0.075] #7.5cm
+        target_dimensions.append(apple_dimensions)
+        lemon_dimensions = [0, 0, 0.06] #6cm
+        target_dimensions.append(lemon_dimensions)
+        orange_dimensions = [0, 0, 0.08] #8cm
+        target_dimensions.append(orange_dimensions)
+        pear_dimensions = [0, 0, 0.11] #11cm
+        target_dimensions.append(pear_dimensions)
+        strawberry_dimensions = [0, 0, 0.045] #4.5cm
+        target_dimensions.append(strawberry_dimensions)
 
     target_list = ['apple', 'lemon', 'pear', 'orange', 'strawberry']
     target_list = ['apple','lemon','orange','pear','strawberry'] #0, 1, 2, 3, 4
@@ -244,10 +257,14 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--search", default="search_list.txt")
+    parser.add_argument("--type", default="sim")
     args, _ = parser.parse_known_args()
 
     # camera_matrix = np.ones((3,3))/2
-    fileK = "{}intrinsic.txt".format('./calibration/param/sim/')
+    if args.type == "sim":
+        fileK = "{}intrinsic.txt".format('./calibration/param/sim/')
+    elif args.type == "phy":
+        fileK = "{}intrinsic.txt".format('./calibration/param/physical/')
     camera_matrix = np.loadtxt(fileK, delimiter=',')
     base_dir = Path('./')
 

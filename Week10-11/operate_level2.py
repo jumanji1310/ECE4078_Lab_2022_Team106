@@ -175,47 +175,91 @@ class Operate:
             obstacles.append([x + 1.5, y + 1.5])
 
         #adding other fruits as obstacles
-        for idx in other_fruits:
+        for idx in all_fruits:
             x,y = self.fruit_true_pos[idx]
             obstacles.append([x + 1.5, y + 1.5])
 
-        all_obstacles = generate_path_obstacles(obstacles, self.radius) #generating obstacles
-
-        #starting robot pose and empty paths
-        start = np.array([0,0]) + 1.5
-        paths = []
-        print("New path generated")
+        #printing search fruits location
         for idx in search_fruits:
-            location = copy.deepcopy(self.fruit_true_pos[idx])
-            offset = 0.15
-            #Stop in front of fruit
-            if location[0] > 0 and location[1] > 0:
-                location -= [offset, offset]
-            elif location[0] > 0 and location[1] < 0:
-                location -= [offset, -offset]
-            elif location[0] < 0 and location[1] > 0:
-                location -= [-offset, offset]
-            else:
-                location += [offset, offset]
+            print(f' {self.fruit_list[idx]} at {self.fruit_true_pos[idx]}')
 
-            print(f' {self.fruit_list[idx]} at {location}')
-            goal = np.array(location) + 1.5
+        radius_success = False
+        while not radius_success:
+            try:
+                all_obstacles = generate_path_obstacles(obstacles, self.radius) #generating obstacles
+
+                #starting robot pose and empty paths
+                start = np.array([0,0]) + 1.5
+                paths = []
+                print("New path generated")
 
 
-            rrtc = RRT(start=start, goal=goal, width=3, height=3, obstacle_list=all_obstacles,
-                    expand_dis=1, path_resolution=0.5)
-            path = rrtc.planning()[::-1] #reverse path
+                for idx in search_fruits:
+                    success = False
+                    method = 1
+                    linear_offset = 0.3
+                    while not success:
+                        location = copy.deepcopy(self.fruit_true_pos[idx])
 
-            #printing path
-            for i in range(len(path)):
-                x, y = path[i]
-                path[i] = [x - 1.5, y - 1.5]
-            # print(f'The path is {path}')
+                        if method == 1:
+                            offset = 0.2
+                            # Stop in front of fruit
+                            if location[0] > 0 and location[1] > 0:
+                                location -= [offset, offset]
+                            elif location[0] > 0 and location[1] < 0:
+                                location -= [offset, -offset]
+                            elif location[0] < 0 and location[1] > 0:
+                                location -= [-offset, offset]
+                            else:
+                                location += [offset, offset]
+                        elif method == 2:
+                            if location[1] > 0:
+                                location -= [0, linear_offset]
+                            else:
+                                location += [0, linear_offset]
+                        elif method == 3:
+                            if location[0] > 0:
+                                location -= [linear_offset,0]
+                            else:
+                                location += [linear_offset,0]
+                        elif method == 4:
+                            if location[1] > 0:
+                                location += [0, linear_offset]
+                            else:
+                                location -= [0, linear_offset]
+                        elif method == 5:
+                            if location[0] > 0:
+                                location += [linear_offset,0]
+                            else:
+                                location -= [linear_offset,0]
+                        else:
+                            break
 
-            #adding paths
-            paths.append(path)
-            start = np.array(goal)
-        self.paths = paths
+                        goal = np.array(location) + 1.5
+
+                        try:
+                            rrtc = RRT(start=start, goal=goal, width=3, height=3, obstacle_list=all_obstacles,
+                                expand_dis=1, path_resolution=0.1)
+                            path = rrtc.planning()[::-1] #reverse path
+                            success = True
+                        except:
+                            print(f"{self.fruit_list[idx]} Failed")
+                            method += 1
+
+                    #printing path
+                    for i in range(len(path)):
+                        x, y = path[i]
+                        path[i] = [x - 1.5, y - 1.5]
+                    # print(f'The path is {path}')
+
+                    #adding paths
+                    paths.append(path)
+                    start = np.array(goal)
+                self.paths = paths
+                radius_success = True
+            except:
+                self.radius -= 0.05
+                print("Radius reduced")
 
     # SLAM with ARUCO markers
     def update_slam(self, drive_meas):
@@ -645,7 +689,7 @@ class Operate:
                             self.waypoints = self.paths[self.path_idx]
                             self.point_idx = 1 #reset point
                             self.wp = self.waypoints[self.point_idx]
-                        self.pibot.set_velocity([0,0],time = 3)
+                        self.pibot.set_velocity([0,0],time = 2)
                     else: #move to next point
                         self.point_idx += 1
                         self.wp = self.waypoints[self.point_idx]
@@ -675,7 +719,7 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--save_data", action='store_true')
     parser.add_argument("--play_data", action='store_true')
-    parser.add_argument("--true_map", default="M4_true_map_7fruits.txt")
+    parser.add_argument("--true_map", default="combined_map.txt")
     # parser.add_argument("--ckpt", default='network/scripts/model/model.best.pth')
     parser.add_argument("--ckpt", default='yolo-sim.pt')
     parser.add_argument("--search", default="search_list.txt")
